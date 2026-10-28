@@ -1,0 +1,120 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Readex Pro', ui-sans-serif, system-ui, sans-serif;
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-kindergarten: var(--kind-kindergarten);
+  --color-nursery: var(--kind-nursery);
+  --color-preschool: var(--kind-preschool);
+}
+
+/* Dusk and satellite share the dark interface; day flips it to sand and ink. */
+:root,
+:root[data-theme='dusk'],
+:root[data-theme='satellite'] {
+  color-scheme: dark;
+  --page: #1f1c18;
+  --surface: rgb(27 24 20 / 0.74);
+  --surface-strong: rgb(30 27 23 / 0.94);
+  --line: rgb(243 237 226 / 0.09);
+  --line-strong: rgb(243 237 226 / 0.2);
+  --ink: #f3ede2;
+  --ink-muted: #b0a698;
+  --ink-faint: #7f7669;
+  --kind-kindergarten: #4fd1c5;
+  --kind-nursery: #ec5b43;
+  --kind-preschool: #e9b949;
+  --shadow: 0 18px 40px -18px rgb(0 0 0 / 0.7);
+}
+
+:root[data-theme='day'] {
+  color-scheme: light;
+  --page: #ede5d6;
+  --surface: rgb(250 246 238 / 0.82);
+  --surface-strong: rgb(250 246 238 / 0.97);
+  --line: rgb(59 51 42 / 0.11);
+  --line-strong: rgb(59 51 42 / 0.24);
+  --ink: #2b251f;
+  --ink-muted: #675d50;
+  --ink-faint: #94897a;
+  --kind-kindergarten: #1f9e93;
+  --kind-nursery: #d2452f;
+  --kind-preschool: #b9881a;
+  --shadow: 0 18px 40px -20px rgb(59 51 42 / 0.45);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 0;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Frosted panel floating over the map. */
+.glass {
+  background: var(--surface);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* MapLibre attribution, restyled to sit quietly in the corner. */
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--surface) !important;
+  color: var(--ink-muted);
+  font-size: 10px;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--ink-muted) !important;
+}
+.maplibregl-ctrl-attrib-button {
+  filter: var(--attrib-filter, invert(1) opacity(0.6));
+}
+:root[data-theme='day'] .maplibregl-ctrl-attrib-button {
+  --attrib-filter: opacity(0.6);
+}
+
+/* Thin scrollbars inside panels. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

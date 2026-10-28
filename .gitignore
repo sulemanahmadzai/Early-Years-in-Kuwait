@@ -1,0 +1,8 @@
+node_modules
+dist
+.DS_Store
+.playwright-mcp
+data/raw/
+Untitled document*.md
+*.local
+.env*
