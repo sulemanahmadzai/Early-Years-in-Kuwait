@@ -1,0 +1,270 @@
+{
+  "0xb6311bf935b184be": {
+    "name": "Rawda | الروضة",
+    "reason": "neighbourhood, not a school (the Rawda area itself)"
+  },
+  "0xf2f838e9cb266cf8": {
+    "name": "Shaman Kindergarten | روضة شامان",
+    "reason": "farm in Abdali (روضة = meadow); a separate Shaman Kindergarten in Jahra is kept"
+  },
+  "0xd936a8f36c11346d": {
+    "name": "روضه سالم الحصينان",
+    "reason": "farm in Abdali (روضة = meadow)"
+  },
+  "0xd48b0cf8eb592686": {
+    "name": "روضة",
+    "reason": "housing society in Rawda"
+  },
+  "0xcf3af868fa5ddb49": {
+    "name": "Janayen nursery | مشتل جناين",
+    "reason": "plant nursery (مشتل)"
+  },
+  "0xad1dded2efe3d455": {
+    "name": "مخازن حضانة سمية",
+    "reason": "a nursery chain's warehouse (مخازن), not a nursery"
+  },
+  "0x3f670c3beca0a30a": {
+    "name": "Math Tutor | مدرس رياضيات",
+    "reason": "maths tutor (رياضيات matched رياض)"
+  },
+  "0xafd0272ff42a3f88": {
+    "name": "آيديا للخدمات التعليمية والرياضية والترفيهية",
+    "reason": "education, sports and entertainment company office"
+  },
+  "0x44373ea33e5e5011": {
+    "name": "Green fields nursery",
+    "reason": "plant nursery / flower market in Wafrah"
+  },
+  "0xdd9fc1742657a207": {
+    "name": "AlRawda Highscool | مدرسة الروضة الثانوية للبنات",
+    "reason": "girls' high school in Rawda"
+  },
+  "0x578b8437d78185f7": {
+    "name": "ثانوية الروضتين بنات",
+    "reason": "girls' high school"
+  },
+  "0x1a494b580f84f4c2": {
+    "name": "Rawdah Public Library | مكتبة الروضة العامة",
+    "reason": "public library in Rawda"
+  },
+  "0xeddd86a4a49e211b": {
+    "name": "Fruits, Vegetables and Nursery Stalls",
+    "reason": "fruit, vegetable and plant stalls"
+  },
+  "0x8344c00289a9bbf9": {
+    "name": "شركة روضة الفواطم للمواد الغذائية",
+    "reason": "food company"
+  },
+  "0xd149fd3b29edebf3": {
+    "name": "Al Rawda Block 4 Park | حديقة الروضة قطعة",
+    "reason": "public park in Rawda"
+  },
+  "0x3f0577376e92c19d": {
+    "name": "Photographer seedbed Association | المصور - جمعية الروضة التعاونية",
+    "reason": "photographer at the Rawda co-op"
+  },
+  "0xf2414cc0e8a3a3f0": {
+    "name": "Desert Blooms Display Center",
+    "reason": "wholesale plant nursery"
+  },
+  "0x743d24b536a7f5e": {
+    "name": "جاخور حياله",
+    "reason": "livestock pen (جاخور)"
+  },
+  "0x599ee76032d0d236": {
+    "name": "جاخورخالدالعاقل",
+    "reason": "livestock pen (جاخور)"
+  },
+  "0x76f56953ca6de011": {
+    "name": "ديوان دغيم المجوي الخالدي",
+    "reason": "diwaniya (men's gathering hall)"
+  },
+  "0x7ba46d90961cef7e": {
+    "name": "ديوان عميل عميلي",
+    "reason": "diwaniya (men's gathering hall)"
+  },
+  "0x251ce75975c1b8e6": {
+    "name": "ممشئ النعيم عند الدوار",
+    "reason": "walking track at a roundabout"
+  },
+  "0x15fe5c184c926541": {
+    "name": "إدارة رقابة الحضانات الخاصة",
+    "reason": "government office: private nurseries supervision department"
+  },
+  "0x5ee60a04b683aa95": {
+    "name": "قسم التقنيات التربوية منطقه الاحمدي التعليميه",
+    "reason": "government office: Ahmadi educational technology department"
+  },
+  "0xb7db77a96a1938b6": {
+    "name": "أكاديمية ريال مدريد الرسمية في الكويت",
+    "reason": "Real Madrid football academy"
+  },
+  "0x8aa04fc984dfa567": {
+    "name": "Milano Academy Hawalli | أكاديمية ميلانو حولي",
+    "reason": "football academy (photo shows a football team)"
+  },
+  "0xc56b59248ad45300": {
+    "name": "مركز شادن لعلاج اللغة والنطق",
+    "reason": "speech therapy centre"
+  },
+  "0xc18775be50e79556": {
+    "name": "نينينتتذذنتدع",
+    "reason": "gibberish name, no details"
+  },
+  "0xecd22b81de07c94a": {
+    "name": "Mannaggia a dio",
+    "reason": "joke name; photo shows rubbish bins"
+  },
+  "0xe1a69ba892087217": {
+    "name": "إستقبال اطفال",
+    "reason": "rated 1.0, open till 10 PM; photo shows plumbing fittings"
+  },
+  "0x6c4d2730885e2057": {
+    "name": "صباح السالم قطعه ٩",
+    "reason": "area label; photo shows shisha pipes"
+  },
+  "0xa3b6860d1cbd8872": {
+    "name": "وله",
+    "reason": "personal pin in Khiran, 8.5 km from any school"
+  },
+  "0xba2e41776fdad28c": {
+    "name": "دار الضيافة وزارة الشئون الاجتماعية والعمل خيطان",
+    "reason": "Ministry of Social Affairs care home, not a kindergarten"
+  },
+  "0x1cc6c326ae97d493": {
+    "name": "معهد تعليمي",
+    "reason": "tutoring institute in a shopping complex"
+  },
+  "0x93cb9a38f6fa1913": {
+    "name": "Teacher Alia",
+    "reason": "private teacher"
+  },
+  "0x8bef482ef9650359": {
+    "name": "Ali jassim class Qusour",
+    "reason": "private class"
+  },
+  "0xfe6bf2da28e02087": {
+    "name": "Sunday palli",
+    "reason": "Sunday school (palli)"
+  },
+  "0xb0abd050f3b759fd": {
+    "name": "Hindikaran palli",
+    "reason": "religious school (palli)"
+  },
+  "0x20fdcacee3558682": {
+    "name": "يوسف كلرْق",
+    "reason": "person's name at a placeholder location in the Jahra stables"
+  },
+  "0xece5ea46fd033819": {
+    "name": "احبس نوره",
+    "reason": "joke pin next to Al-Ekhlas Kindergarten"
+  },
+  "0x2e215c46c7c064f3": {
+    "name": "نادي نقش",
+    "reason": "party / events club"
+  },
+  "0x9ec86b898d37736": {
+    "name": "اكاديميه التميز التعليمية",
+    "reason": "evening tutoring academy (photo shows school desks), placeholder location"
+  },
+  "0x1f5b8215c17a14b2": {
+    "name": "Alheba Pre school parking",
+    "reason": "parking for Al Hiba Kindergarten, which is kept"
+  },
+  "0x78c25339e10660f0": {
+    "name": "Rawdat al bashair health center for KG",
+    "reason": "health clinic of Al Bashaer Kindergarten, which is kept"
+  },
+  "0xf95cf52d649bcf9b": {
+    "name": "EPG Ceremony Hall",
+    "reason": "EPG graduation hall; EPG Salmiya next door is kept"
+  },
+  "0xe8a26c2e7fc6f326": {
+    "name": "British Learning Nursery | الرحمة العالمية - صباح السالم",
+    "reason": "charity listing 16 m from British Learning Nursery, which is kept"
+  },
+  "0x55ab85fe7a28d463": {
+    "name": "القاعدة الدمشقية",
+    "reason": "same spot as Damascene Bilingual Nursery, which is kept"
+  },
+  "0x8ed55291090f54a7": {
+    "name": "Kindergarten school NB01",
+    "reason": "duplicate pin 7 m from Al-Athkia Kindergarten, which is kept"
+  },
+  "0xfb81e7913135cd0a": {
+    "name": "Job",
+    "reason": "\"Job\" pin 36 m from British Kindergarten Nursery, which is kept"
+  },
+  "0xb7db3db1ffbabfeb": {
+    "name": "School",
+    "reason": "\"School\" pin 40 m from Little Thinker Academy, which is kept"
+  },
+  "0xbc3d064e5c73b628": {
+    "name": "Osama school",
+    "reason": "pin 59 m from Smart Steps Nursery, which is kept"
+  },
+  "0x7ce562f0ed2c6c39": {
+    "name": "Farwaniya",
+    "reason": "area name only, no reviews, photo, phone or website"
+  },
+  "0x948e97abce533ddd": {
+    "name": "kaifan",
+    "reason": "area name only, no reviews, photo, phone or website"
+  },
+  "0x8c6defba96426b01": {
+    "name": "Jeleeb al Shiyoukh block 4",
+    "reason": "area name only, no photo, phone or website"
+  },
+  "0x18090beb3d7e09e5": {
+    "name": "Myheart",
+    "reason": "no school name, no reviews, photo, phone or website"
+  },
+  "0x1163112e477893a5": {
+    "name": "خوخة",
+    "reason": "no school name, no reviews, photo, phone or website"
+  },
+  "0x5f70a1513d5ebaa6": {
+    "name": "حموده العامريه",
+    "reason": "person's nickname, no reviews, photo, phone or website"
+  },
+  "0x552f3ed426c135bd": {
+    "name": "فهد أسد المنقف",
+    "reason": "person's name, temporarily closed, no details"
+  },
+  "0xc1a7e5bcb9681027": {
+    "name": "الاحتياجات الخاصه",
+    "reason": "no school name, no reviews, photo, phone or website"
+  },
+  "0x955d3840d7642bd7": {
+    "name": "السنبلة",
+    "reason": "no school name, no reviews, photo, phone or website"
+  },
+  "0x156868cc08248a6": {
+    "name": "Alshomos",
+    "reason": "no school name, no photo, phone or website; 77 m from Al Atraf Kindergarten"
+  },
+  "0xfc31c3591ecca063": {
+    "name": "School omar & bibi",
+    "reason": "no school name, no reviews, photo, phone or website"
+  },
+  "0x23f6356683b45947": {
+    "name": "مدرسة",
+    "reason": "just \"school\", no reviews, photo, phone or website"
+  },
+  "0x59f38bfb765ccff7": {
+    "name": "T",
+    "reason": "name is a single letter, placeholder location"
+  },
+  "0x24f0e7f006e39321": {
+    "name": "حضانة",
+    "reason": "no name, placeholder location in the Jahra stables"
+  },
+  "0x76c95cae71c8f996": {
+    "name": "K26",
+    "reason": "no school name, no photo, phone or website"
+  },
+  "0x27ed56ce488b4b30": {
+    "name": "Nursery Management",
+    "reason": "nursery management office on a downtown commercial street"
+  }
+}

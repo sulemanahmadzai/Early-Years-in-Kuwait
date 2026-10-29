@@ -14,7 +14,9 @@ const KUWAIT_BBOX = { south: 28.52, north: 30.11, west: 46.55, east: 48.43 };
 const EARLY_YEARS_CATEGORY = /nursery school|preschool|pre-school|kindergarten|day ?care|child ?care|playgroup|montessori|early childhood/i;
 // Generic school categories count only when the name says it is early-years.
 const SCHOOL_CATEGORY = /school|academy|education/i;
-const EARLY_YEARS_NAME = /nursery|pre-?school|kindergarten|\bkg\b|day ?care|montessori|toddler|kids|حضان|روض|رياض|تمهيدي/i;
+// "روضة" is a kindergarten, but "الروضة" is usually the Rawda area (its library, park, high school),
+// and "رياض" alone also matches "رياضيات" (maths), so it only counts as "رياض الأطفال".
+const EARLY_YEARS_NAME = /nursery|pre-?school|kindergarten|\bkg\b|day ?care|montessori|toddler|kids|حضان|(?<!ال)روض|رياض\s*(ال)?[أا]طفال|تمهيدي/i;
 const NOT_A_SCHOOL = /plant|garden|florist|landscap|farm|seed|tree|pharmacy|hospital|clinic|doctor|dental|store|shop|supermarket|market|restaurant|caf[eé]|salon|spa|hotel|mosque|church|park|playground|real estate|mall|toy|clothing|furniture|bank|government office|ministry/i;
 
 const discovered = readJson(path.join(RAW_DIR, 'discovered.json'), { places: {} }).places;
@@ -99,12 +101,16 @@ function classify(name, altName, category) {
 
 // Names that leave no doubt. Arabic حضانة is a child nursery (a plant nursery is مشتل),
 // so these win even when the business picked a wrong Google category.
-const STRONG_NAME = /حا?ضا?ن|روض|رياض\s*(ال)?أطفال|تعليم المبكر|nursery school|pre-?school|kindergarten|\bkg\b|day ?care|montes+or+i|toddler|early (learning|years|childhood)/i;
+const STRONG_NAME = /حا?ضا?ن|(?<!ال)روض|رياض\s*(ال)?أطفال|تعليم المبكر|nursery school|pre-?school|kindergarten|\bkg\b|day ?care|montes+or+i|toddler|early (learning|years|childhood)/i;
 const KID_WORDS = /kid|baby|babies|child|little|play|tots|toddler|mini|junior/i;
 // Categories that are never a school, whatever the name says.
-const HARD_NO = /grocery|supermarket|co-?op|restaurant|caf[eé]|pharmacy|hospital|clinic|doctor|dental|medical|health|salon|spa\b|hotel|mosque|church|real estate|bank|car |gas station|mall|clothing|furniture|store|shop|gym|park\b|bus stop/i;
+const HARD_NO = /grocery|supermarket|market|co-?op|restaurant|caf[eé]|pharmacy|hospital|clinic|doctor|dental|medical|health|salon|spa\b|hotel|mosque|church|real estate|bank|car |gas station|mall|clothing|furniture|store|shop|gym|park\b|playground|bus stop|library|farm|photographer|high school|distribution|warehouse/i;
+
+// Places checked by hand and found not to be early-years schools (see the reason on each).
+const EXCLUDE = readJson(path.join(ROOT, 'scripts/scrape/exclude.json'), {});
 
 function verdict(p, d) {
+  if (EXCLUDE[p.fid.split(':')[1]]) return 'excluded by hand (scripts/scrape/exclude.json)';
   if (!d || d.error) return 'no details';
   if (d.status === 'Permanently closed') return 'permanently closed';
   const { lat, lng } = p;

@@ -43,6 +43,10 @@ The build step keeps places whose Google category is early-years (nursery school
 preschool, day care…) or whose name clearly says so (حضانة, روضة, nursery, KG…), and drops plant
 nurseries, shops and permanently closed places. `data/raw/rejected.json` lists everything dropped and why.
 
+Some listings pass those rules but are not schools: farms called "روضة" (meadow), a livestock pen, a
+diwaniya, joke pins. They were checked by hand and are listed with a reason in `scripts/scrape/exclude.json`,
+which the build always skips. Remove a line there to bring a place back.
+
 ## Notes
 
 - `maplibre-gl` is pinned to v5: deck.gl 9.4's interleaved mode does not work with MapLibre 6 yet.
