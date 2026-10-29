@@ -4,6 +4,6 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // MapLibre and deck.gl are large by nature; the app is a single map page.
-  build: { chunkSizeWarningLimit: 2000 },
+  // MapLibre, deck.gl and the bundled school list are large by nature; the app is a single map page.
+  build: { chunkSizeWarningLimit: 3000 },
 });

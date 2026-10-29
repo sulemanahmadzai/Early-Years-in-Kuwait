@@ -84,11 +84,14 @@ function splitBilingual(name) {
 // category, which owners choose themselves, only decides when the name says nothing.
 function classify(name, altName, category) {
   const names = `${name} ${altName ?? ''}`;
-  if (/روض|رياض/.test(names)) return 'kindergarten';
-  if (/حضان/.test(names)) return 'nursery';
+  // "حضانة الروضة" is a nursery in Rawda, so the word that comes first decides.
+  const nurseryAt = names.search(/حا?ضا?ن/);
+  const kgAt = names.search(/روض|رياض/);
+  if (nurseryAt >= 0 && (kgAt < 0 || nurseryAt < kgAt)) return 'nursery';
+  if (kgAt >= 0) return 'kindergarten';
   if (/kindergarten|\bkg\b/i.test(names)) return 'kindergarten';
   if (/nursery|day ?care|baby|toddler/i.test(names)) return 'nursery';
-  if (/pre-?school|montessori|early (years|childhood|learning)|play ?school/i.test(names)) return 'preschool';
+  if (/pre-?school|montes+or+i|early (years|childhood|learning)|play ?school/i.test(names)) return 'preschool';
   if (/kindergarten/i.test(category ?? '')) return 'kindergarten';
   if (/preschool|montessori/i.test(category ?? '')) return 'preschool';
   return 'nursery';
@@ -96,10 +99,10 @@ function classify(name, altName, category) {
 
 // Names that leave no doubt. Arabic حضانة is a child nursery (a plant nursery is مشتل),
 // so these win even when the business picked a wrong Google category.
-const STRONG_NAME = /حضان|روض|رياض\s*(ال)?أطفال|nursery school|pre-?school|kindergarten|\bkg\b|day ?care|montessori|toddler/i;
+const STRONG_NAME = /حا?ضا?ن|روض|رياض\s*(ال)?أطفال|تعليم المبكر|nursery school|pre-?school|kindergarten|\bkg\b|day ?care|montes+or+i|toddler|early (learning|years|childhood)/i;
 const KID_WORDS = /kid|baby|babies|child|little|play|tots|toddler|mini|junior/i;
 // Categories that are never a school, whatever the name says.
-const HARD_NO = /grocery|supermarket|restaurant|caf[eé]|pharmacy|hospital|clinic|doctor|dental|salon|spa\b|hotel|mosque|church|real estate|bank|car |gas station|mall|clothing|furniture|toy store/i;
+const HARD_NO = /grocery|supermarket|co-?op|restaurant|caf[eé]|pharmacy|hospital|clinic|doctor|dental|medical|health|salon|spa\b|hotel|mosque|church|real estate|bank|car |gas station|mall|clothing|furniture|store|shop|gym|park\b|bus stop/i;
 
 function verdict(p, d) {
   if (!d || d.error) return 'no details';
@@ -111,10 +114,14 @@ function verdict(p, d) {
   const name = `${d.name ?? p.name} ${d.altName ?? ''}`;
   if (EARLY_YEARS_CATEGORY.test(category)) return 'keep';
   if (HARD_NO.test(category)) return `category: ${category}`;
-  if (/plant nursery|garden|florist|landscap/i.test(category)) {
-    return /حضان|روض|رياض/.test(name) || KID_WORDS.test(name) ? 'keep' : `category: ${category}`;
+  if (/plant nursery|garden|florist|landscap|wholesal|arboretum/i.test(category)) {
+    return /حا?ضا?ن|روض|رياض/.test(name) || KID_WORDS.test(name) ? 'keep' : `category: ${category}`;
   }
+  // "… near Blossoms Nursery" is a building next to a school, not the school.
+  if (/\bnear\b|بالقرب/i.test(name)) return `category: ${category || '(none)'} (near)`;
   if (STRONG_NAME.test(name)) return 'keep';
+  // Plain "nursery" is ambiguous in English (plants), but plant nurseries were handled above.
+  if (/nursery|نيرسري/i.test(name)) return 'keep';
   if (SCHOOL_CATEGORY.test(category) && EARLY_YEARS_NAME.test(name)) return 'keep';
   if (NOT_A_SCHOOL.test(category)) return `category: ${category}`;
   return `category: ${category || '(none)'}`;

@@ -49,7 +49,7 @@ export function DetailPanel({ school, connected, sheet, onClose, onSelect }: Pro
                 <span className="size-2 rounded-full" style={{ background: KINDS[school.kind].css }} />
                 {KINDS[school.kind].label}
               </div>
-              <h2 className="mt-2 text-[22px] font-light leading-tight tracking-[-0.01em] text-ink">{school.name}</h2>
+              <h2 dir="auto" className="mt-2 text-start text-[22px] font-light leading-tight tracking-[-0.01em] text-ink">{school.name}</h2>
               {school.nameAr && school.nameAr !== school.name && (
                 <p dir="rtl" lang="ar" className="mt-1 text-[16px] text-ink-muted">
                   {school.nameAr}
@@ -116,7 +116,7 @@ export function DetailPanel({ school, connected, sheet, onClose, onSelect }: Pro
                           className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-line"
                         >
                           <span className="size-2 shrink-0 rounded-full" style={{ background: KINDS[n.kind].css }} />
-                          <span className="min-w-0 flex-1 truncate text-[13px] text-ink-muted">{n.name}</span>
+                          <span dir="auto" className="min-w-0 flex-1 truncate text-start text-[13px] text-ink-muted">{n.name}</span>
                           <span className="tabular shrink-0 text-[12px] text-ink-faint">{formatKm(km)}</span>
                         </button>
                       </li>

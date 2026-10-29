@@ -28,7 +28,7 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 // Overshoots slightly, so each school "pops" into place.
 const easeOutBack = (x: number) => 1 + 2.2 * (x - 1) ** 3 + 1.2 * (x - 1) ** 2;
 // Dot radius in pixels for a zoom level: fine grain at country scale, larger in a neighbourhood.
-const dotRadius = (zoom: number) => Math.min(8, 2.6 + Math.max(0, zoom - 9) * 0.7);
+const dotRadius = (zoom: number) => Math.min(8, 2.1 + Math.max(0, zoom - 9) * 0.8);
 // Map labels are drawn above the network so place names stay readable.
 // (`beforeId` is read by the MapLibre overlay; deck's layer types don't declare it.)
 const UNDER_LABELS: object = { beforeId: 'water-names' };
@@ -55,7 +55,6 @@ function useClock(running: boolean) {
   }, [running]);
   return time;
 }
-
 
 interface Props {
   schools: School[];
@@ -150,7 +149,6 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
       getLineWidth: (f) => (f.properties?.shapeName === governorate ? 1.6 : 1),
       lineWidthUnits: 'pixels',
       updateTriggers: { getFillColor: [governorate, dark], getLineColor: [governorate, dark], getLineWidth: governorate },
-      transitions: { getFillColor: 400, getLineColor: 400 },
     }),
     showWeave &&
       new TripsLayer({
@@ -175,7 +173,6 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
         fadeTrail: false,
         capRounded: true,
         updateTriggers: { getColor: [...colorTriggers, wide, theme], getWidth: focusIndex },
-        transitions: { getColor: 250 },
       }),
     showWeave &&
       showPulses &&
@@ -209,7 +206,6 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
       radiusScale: radius * (zoom < 11 ? 1.9 : 2.5),
       getFillColor: (s, { index }) => [...KINDS[s.kind].color, Math.round(schoolAlpha(s, index) * (dark ? 0.16 : 0.12))] as RGBA,
       updateTriggers: { getRadius: radiusTrigger, getFillColor: colorTriggers },
-      transitions: { getFillColor: 250 },
     }),
     new ScatterplotLayer<School>({
       id: 'schools',
@@ -227,7 +223,6 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
       getLineColor: dark ? [20, 18, 15, 210] : [255, 252, 245, 230],
       lineWidthMinPixels: zoom < 11 ? 0.5 : 1,
       updateTriggers: { getRadius: [radiusTrigger, focusIndex], getFillColor: colorTriggers },
-      transitions: { getFillColor: 250, getRadius: 180 },
     }),
     focusIndex >= 0 &&
       new ScatterplotLayer<School>({

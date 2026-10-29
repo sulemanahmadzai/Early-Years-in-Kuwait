@@ -14,12 +14,12 @@ import { SearchButton, SearchPalette } from './components/SearchPalette';
 import { PresentationOverlay, type Slide } from './components/PresentationOverlay';
 import { GOVERNORATES, KIND_ORDER } from './lib/meta';
 import { buildNetwork, distanceKm } from './lib/network';
-import { boundsOf } from './lib/geo';
+import { coreBoundsOf } from './lib/geo';
 import { prefersReducedMotion, useMediaQuery } from './lib/hooks';
 import type { Kind, MapTheme, School } from './lib/types';
 
 const SCHOOLS = schoolsData as School[];
-const ALL_BOUNDS = boundsOf(SCHOOLS);
+const ALL_BOUNDS = coreBoundsOf(SCHOOLS);
 const TOUR_ORDER = ['Al Asimah', 'Hawalli', 'Mubarak Al-Kabeer', 'Ahmadi', 'Farwaniya', 'Jahra'];
 const HOME_PITCH = 38;
 const HOME_BEARING = -8;
@@ -65,7 +65,7 @@ export function App() {
     const out: Record<string, LngLatBoundsLike> = {};
     for (const key of Object.keys(GOVERNORATES)) {
       const list = SCHOOLS.filter((s) => s.governorate === key);
-      if (list.length) out[key] = boundsOf(list, 0.06);
+      if (list.length) out[key] = coreBoundsOf(list, 0.04, 0.02);
     }
     return out;
   }, []);

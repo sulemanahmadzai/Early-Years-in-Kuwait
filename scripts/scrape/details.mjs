@@ -16,7 +16,9 @@ const retryErrors = arg('retry-errors') === true;
 const todo = Object.values(places)
   .filter((p) => !details[p.fid] || (retryErrors && details[p.fid].error))
   .slice(0, Number(arg('limit', Infinity)));
-const workers = Number(arg('workers', 4));
+const workers = Number(arg('workers', 2));
+// Pause between pages (ms). Doubles every time Google rate-limits us.
+let pace = Number(arg('pace', 1500));
 
 console.log(`${Object.keys(places).length} discovered, ${todo.length} to fetch, ${workers} workers`);
 const started = Date.now();
@@ -42,7 +44,8 @@ async function worker(id, context) {
       if (err instanceof BlockedError) {
         todo.unshift(place);
         if (++blockedStrikes >= 3) throw err;
-        console.warn(`[w${id}] Google is rate-limiting; pausing 5 minutes (strike ${blockedStrikes}/3)`);
+        pace = Math.min(8000, pace * 2);
+        console.warn(`[w${id}] Google is rate-limiting; pausing 5 minutes, then slowing to ${pace} ms per page (strike ${blockedStrikes}/3)`);
         await sleep(5 * 60000);
         continue;
       }
@@ -54,7 +57,7 @@ async function worker(id, context) {
       const rate = fetched / ((Date.now() - started) / 60000);
       console.log(`${fetched} fetched, ${todo.length} left (~${(todo.length / rate).toFixed(0)} min) — last: ${details[place.fid].name ?? details[place.fid].error}`);
     }
-    await sleep(jitter(700));
+    await sleep(jitter(pace));
   }
   await page.close();
 }

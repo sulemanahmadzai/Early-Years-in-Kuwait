@@ -40,7 +40,7 @@ export function HoverCard({ hover }: Props) {
               <span className="size-2 rounded-full" style={{ background: KINDS[s.kind].css }} />
               {KINDS[s.kind].label}
             </div>
-            <div className="mt-1 text-[15px] font-normal leading-snug text-ink">{s.name}</div>
+            <div dir="auto" className="mt-1 text-start text-[15px] font-normal leading-snug text-ink">{s.name}</div>
             {s.nameAr && s.nameAr !== s.name && (
               <div dir="rtl" lang="ar" className="mt-0.5 truncate text-[13px] text-ink-muted">
                 {s.nameAr}

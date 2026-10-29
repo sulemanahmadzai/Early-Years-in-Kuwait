@@ -88,7 +88,7 @@ export function SearchPalette({ open, schools, onOpenChange, onSchool, onGoverno
                   value={query}
                   onValueChange={setQuery}
                   placeholder="School name in English or Arabic, or an area like Salmiya"
-                  className="h-14 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-faint"
+                  className="h-14 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-faint focus-visible:outline-none"
                 />
               </div>
               <Command.List className="scroll-thin max-h-[52vh] overflow-y-auto p-2">
@@ -121,7 +121,7 @@ export function SearchPalette({ open, schools, onOpenChange, onSchool, onGoverno
                   >
                     <span className="size-2.5 shrink-0 rounded-full" style={{ background: KINDS[s.kind].css }} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] text-ink">{s.name}</span>
+                      <span dir="auto" className="block truncate text-start text-[14px] text-ink">{s.name}</span>
                       {s.nameAr && s.nameAr !== s.name && (
                         <span dir="rtl" lang="ar" className="block truncate text-right text-[12.5px] text-ink-faint">
                           {s.nameAr}
