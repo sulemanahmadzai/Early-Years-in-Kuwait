@@ -76,6 +76,24 @@ Google has none); two pins matching one Ministry entry are merged. Everything el
 (حضانة) are privately run, and kindergartens missing from the directory are private ones. Ministry
 kindergartens with no pin on Google Maps are listed in `data/raw/moe-not-on-map.json`.
 
+## Coverage (where children are, and how far the schools are)
+
+The **Coverage** switch replaces the woven network with hexagons 1.2 km across, built from WorldPop's 2026
+estimates of children under five (100 m grid, ages 0 and 1–4). Two views:
+
+- **Children per school**: 3D columns as tall as the number of young children living there, coloured by
+  children under five per school within 1.5 km (brightest = no nursery or kindergarten that close).
+- **Distance to a school**: flat hexagons coloured by the distance to the nearest school.
+
+The panel gives the totals, how many children live more than 2 km from a school, and the most underserved
+areas (click to fly there). Everything follows the current filters, so "Government" shows how far children
+are from a government kindergarten. The last presentation slide, "Where the gaps are", uses it too.
+Figures are indicative: school sizes aren't known.
+
+To rebuild the hexagons (e.g. for a newer WorldPop year), download the rasters and run the script; the
+commands are at the top of `scripts/coverage/children.mjs`. Neighbourhood names come from the same
+OpenStreetMap tiles the map draws, fetched once and cached in `data/raw/osm-places.json`.
+
 ## Switching schools on and off
 
 "Choose schools" (bottom-left panel, or the phone sheet) lists every school with an on/off switch,

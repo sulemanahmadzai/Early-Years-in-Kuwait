@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { Layer, Map, Source, useControl, type MapRef } from 'react-map-gl/maplibre';
 import { MapboxOverlay, type MapboxOverlayProps } from '@deck.gl/mapbox';
-import { ScatterplotLayer, GeoJsonLayer } from '@deck.gl/layers';
+import { ColumnLayer, ScatterplotLayer, GeoJsonLayer } from '@deck.gl/layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import type { PickingInfo } from '@deck.gl/core';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -11,6 +11,7 @@ import { KINDS, ORIGIN } from '../lib/meta';
 import { buildPulses, distanceKm, type Network } from '../lib/network';
 import type { MapTheme, School } from '../lib/types';
 import type { Lang } from '../lib/i18n';
+import { type Coverage, type HexStat, type Lens, HEX_RADIUS_M, RAMPS } from '../lib/coverage';
 
 const governorates = JSON.parse(governoratesRaw) as GeoJSON.FeatureCollection;
 
@@ -79,12 +80,20 @@ interface Props {
   onHover: (school: School | null, x: number, y: number) => void;
   onSelect: (school: School | null) => void;
   onLoad: () => void;
+  /** Coverage view: hexagons of children under five instead of the woven network. */
+  coverage: Coverage | null;
+  lens: Lens;
+  onHexHover: (hex: HexStat | null, x: number, y: number) => void;
 }
+
+const hexToRgb = (hex: string): RGB => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as RGB;
+const COVERAGE_RAMPS = { dark: RAMPS.dark.map(hexToRgb), light: RAMPS.light.map(hexToRgb) };
+const easeOutCubic = (x: number) => 1 - (1 - x) ** 3;
 
 export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref) {
   const {
     schools, network, theme, lang, showWeave, showPulses, governorate, hoveredId, selectedId,
-    introStartedAt, skipIntro, onHover, onSelect, onLoad,
+    introStartedAt, skipIntro, onHover, onSelect, onLoad, coverage, lens, onHexHover,
   } = props;
   const mapRef = useRef<MapRef | null>(null);
   const reducedMotion = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)').matches, []);
@@ -142,6 +151,16 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
   const wide = zoom < 11;
   const ringPhase = (time * 0.8) % 1;
 
+  // Coverage columns rise out of the ground whenever the view opens or the lens changes.
+  const coverageOn = coverage !== null;
+  const [coverageSince, setCoverageSince] = useState(0);
+  useEffect(() => {
+    if (coverageOn) setCoverageSince(performance.now() / 1000);
+  }, [coverageOn, lens]);
+  const grow = reducedMotion ? 1 : easeOutCubic(clamp01((now - coverageSince) / 1.2));
+  const ramp = COVERAGE_RAMPS[dark ? 'dark' : 'light'];
+  const extruded = lens === 'perSchool';
+
   const layers = [
     new GeoJsonLayer({
       id: 'governorates',
@@ -156,7 +175,28 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
       lineWidthUnits: 'pixels',
       updateTriggers: { getFillColor: [governorate, dark], getLineColor: [governorate, dark], getLineWidth: governorate },
     }),
+    coverage &&
+      new ColumnLayer<HexStat>({
+        id: 'coverage',
+        ...UNDER_LABELS,
+        data: coverage.hexes,
+        diskResolution: 6,
+        radius: HEX_RADIUS_M,
+        coverage: 0.9,
+        extruded,
+        pickable: true,
+        autoHighlight: true,
+        highlightColor: dark ? [255, 255, 255, 70] : [0, 0, 0, 40],
+        getPosition: (h) => [h.lng, h.lat],
+        getElevation: (h) => h.children,
+        elevationScale: extruded ? 2.4 * grow : 0,
+        getFillColor: (h) => [...ramp[h.band[lens]], extruded ? 240 : 200] as RGBA,
+        opacity: extruded ? 1 : grow,
+        material: { ambient: 0.5, diffuse: 0.65, shininess: 20, specularColor: [50, 50, 50] },
+        updateTriggers: { getFillColor: [lens, dark] },
+      }),
     showWeave &&
+      !coverage &&
       new TripsLayer({
         id: 'weave',
         ...UNDER_LABELS,
@@ -182,6 +222,7 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
       }),
     showWeave &&
       showPulses &&
+      !coverage &&
       introPhase === 'after' &&
       !reducedMotion &&
       new TripsLayer({
@@ -200,7 +241,8 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
         capRounded: true,
         opacity: dark ? 0.85 : 0.7,
       }),
-    new ScatterplotLayer<School>({
+    !coverage &&
+      new ScatterplotLayer<School>({
       id: 'schools-glow',
       billboard: true,
         ...UNDER_LABELS,
@@ -223,12 +265,13 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
       getPosition: (s) => [s.lng, s.lat],
       getRadius: (_, { index }) => appear(index) * (index === focusIndex ? 1.5 : 1),
       radiusUnits: 'pixels',
-      radiusScale: radius,
-      getFillColor: (s, { index }) => [...KINDS[s.kind].color, schoolAlpha(s, index)] as RGBA,
+      // In the coverage view schools become small pearl pins so the amber scale reads on its own.
+      radiusScale: coverage ? radius * 0.7 : radius,
+      getFillColor: (s, { index }) => (coverage ? [...pearl, 235] : [...KINDS[s.kind].color, schoolAlpha(s, index)]) as RGBA,
       stroked: true,
       getLineColor: dark ? [20, 18, 15, 210] : [255, 252, 245, 230],
       lineWidthMinPixels: zoom < 11 ? 0.5 : 1,
-      updateTriggers: { getRadius: [radiusTrigger, focusIndex], getFillColor: colorTriggers },
+      updateTriggers: { getRadius: [radiusTrigger, focusIndex], getFillColor: [...colorTriggers, coverageOn] },
     }),
     focusIndex >= 0 &&
       new ScatterplotLayer<School>({
@@ -249,6 +292,7 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
   ].filter(Boolean);
 
   const pick = (info: PickingInfo) => (info.layer?.id === 'schools' ? (info.object as School) : null);
+  const pickHex = (info: PickingInfo) => (info.layer?.id === 'coverage' ? (info.object as HexStat) : null);
 
   return (
     <Map
@@ -299,9 +343,11 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
         pickingRadius={10}
         onHover={(info) => {
           const school = pick(info);
+          const hex = school ? null : pickHex(info);
           const canvas = mapRef.current?.getCanvas();
           if (canvas) canvas.style.cursor = school ? 'pointer' : '';
           onHover(school, info.x, info.y);
+          onHexHover(hex, info.x, info.y);
         }}
         onClick={(info) => onSelect(pick(info))}
       />

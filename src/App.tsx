@@ -13,6 +13,9 @@ import { DetailPanel } from './components/DetailPanel';
 import { SearchButton, SearchPalette } from './components/SearchPalette';
 import { PresentationOverlay, type Slide } from './components/PresentationOverlay';
 import { SchoolManager } from './components/SchoolManager';
+import { CoveragePanel } from './components/CoveragePanel';
+import { HexCard } from './components/HexCard';
+import { analyseCoverage, type HexStat, type Lens } from './lib/coverage';
 import { Toast, type ToastMessage } from './components/Toast';
 import { loadHidden, saveHidden, selectionLink } from './lib/selection';
 import { useWords } from './lib/i18n';
@@ -60,6 +63,10 @@ export function App() {
   const [hidden, setHidden] = useState<Set<string>>(() => loadHidden(SCHOOLS));
   const [managerOpen, setManagerOpen] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  // Coverage view: where children under five live relative to the schools on the map.
+  const [coverageOn, setCoverageOn] = useState(false);
+  const [lens, setLens] = useState<Lens>('perSchool');
+  const [hexHover, setHexHover] = useState<{ hex: HexStat; x: number; y: number } | null>(null);
   const timers = useRef<number[]>([]);
   const presenting = slideIndex !== null;
 
@@ -73,6 +80,7 @@ export function App() {
   const inSector = useCallback((s: School) => sector === 'all' || s.sector === sector, [sector]);
   const visible = useMemo(() => shown.filter((s) => kinds.has(s.kind) && inSector(s)), [shown, kinds, inSector]);
   const network = useMemo(() => buildNetwork(visible), [visible]);
+  const coverage = useMemo(() => (coverageOn ? analyseCoverage(visible) : null), [coverageOn, visible]);
   const inGovernorate = useMemo(() => (governorate ? shown.filter((s) => s.governorate === governorate) : shown), [governorate, shown]);
   const kindCounts = useMemo(() => countKinds(inGovernorate.filter(inSector)), [inGovernorate, inSector]);
   const sectorCounts = useMemo(() => {
@@ -191,6 +199,8 @@ export function App() {
       }
     }
     list.push({ id: 'grid', ...all, threads: buildNetwork(shown).edges.length });
+    const gaps = analyseCoverage(shown);
+    list.push({ id: 'gaps', ...all, children: gaps.children, farChildren: gaps.farChildren });
     return list;
   }, [shown]);
 
@@ -202,8 +212,14 @@ export function App() {
       setHover(null);
       const isGov = slide.id in GOVERNORATES;
       setGovernorate(isGov ? slide.id : null);
+      setCoverageOn(slide.id === 'gaps');
+      if (slide.id === 'gaps') setLens('perSchool');
       if (isGov) flyToBounds(governorateBounds[slide.id], { pitch: 52, bearing: index % 2 ? -22 : 16, duration: 3200 });
       else if (slide.id === 'grid') flyToBounds(ALL_BOUNDS, { pitch: 55, bearing: 18, duration: 3600 });
+      // Close enough on the populated band for the 3D columns to read.
+      else if (slide.id === 'gaps') {
+        mapRef.current?.getMap().flyTo({ center: [47.93, 29.2], zoom: 10.25, pitch: 60, bearing: -24, duration: 3600, essential: true });
+      }
       else flyHome(3000);
     },
     [flyHome, flyToBounds, governorateBounds, slides],
@@ -221,6 +237,7 @@ export function App() {
   const stopPresenting = useCallback(() => {
     setSlideIndex(null);
     setGovernorate(null);
+    setCoverageOn(false);
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     flyHome();
   }, [flyHome]);
@@ -313,6 +330,36 @@ export function App() {
       .catch(() => notify(t.toastCopyBlocked));
   }, [hidden, notify, shown.length, t]);
 
+  // ---- Coverage view ---------------------------------------------------------
+
+  const toggleCoverage = useCallback(
+    (on: boolean) => {
+      setCoverageOn(on);
+      setHexHover(null);
+      setManagerOpen(false);
+      // Tilt further to show the 3D columns; back to the usual angle afterwards.
+      mapRef.current?.getMap().easeTo({ pitch: on ? 54 : HOME_PITCH, bearing: on ? -16 : HOME_BEARING, duration: 1400, essential: true });
+    },
+    [],
+  );
+
+  const locateHex = useCallback(
+    (hex: HexStat) => {
+      const map = mapRef.current?.getMap();
+      map?.flyTo({
+        center: [hex.lng, hex.lat],
+        zoom: Math.max(map.getZoom(), 12.6),
+        pitch: 56,
+        duration: 1800,
+        padding: isPhone
+          ? { top: 40, bottom: innerHeight * 0.5, left: 0, right: 0 }
+          : { top: 0, bottom: 0, left: rtl ? 0 : 340, right: rtl ? 340 : 0 },
+        essential: true,
+      });
+    },
+    [isPhone, rtl],
+  );
+
   // A school switched off while its details are open closes the panel.
   useEffect(() => {
     if (selected && hidden.has(selected.id)) setSelected(null);
@@ -345,6 +392,9 @@ export function App() {
         onHover={(school, x, y) => setHover(school && canHover ? { school, x, y } : null)}
         onSelect={(school) => (school ? selectSchool(school) : setSelected(null))}
         onLoad={onMapLoad}
+        coverage={coverage}
+        lens={lens}
+        onHexHover={(hex, x, y) => setHexHover(hex && canHover ? { hex, x, y } : null)}
       />
 
       {/* Soft fade behind the title so map labels never fight with it. */}
@@ -363,7 +413,25 @@ export function App() {
           </motion.div>
         )}
 
-        {chrome && !isPhone && !managerOpen && (
+        {chrome && !isPhone && coverageOn && (
+          <motion.div
+            key="coverage"
+            {...reveal(0)}
+            className="glass scroll-thin absolute bottom-6 start-6 top-[150px] z-20 w-[320px] overflow-y-auto rounded-3xl p-3"
+          >
+            <CoveragePanel
+              coverage={coverage!}
+              lens={lens}
+              onLens={setLens}
+              governmentOnly={sector === 'government'}
+              dark={theme !== 'day'}
+              onLocate={locateHex}
+              onClose={() => toggleCoverage(false)}
+            />
+          </motion.div>
+        )}
+
+        {chrome && !isPhone && !managerOpen && !coverageOn && (
           <motion.div key="index" {...reveal(0.2)} className="glass absolute bottom-6 start-6 z-20 w-[300px] rounded-3xl p-3">
             <IndexPanel
               sector={sector}
@@ -402,6 +470,8 @@ export function App() {
               onZoom={(d) => (d > 0 ? mapRef.current?.zoomIn() : mapRef.current?.zoomOut())}
               onHome={() => selectGovernorate(null)}
               onPresent={startPresenting}
+              coverage={coverageOn}
+              onCoverage={toggleCoverage}
             />
           </motion.div>
         )}
@@ -423,6 +493,22 @@ export function App() {
             >
               <span className="h-1 w-10 rounded-full bg-line-strong" />
             </button>
+            {coverageOn && coverage ? (
+              <div className={sheetOpen ? 'scroll-thin max-h-[62vh] overflow-y-auto' : 'max-h-[190px] overflow-hidden'}>
+                <CoveragePanel
+                  coverage={coverage}
+                  lens={lens}
+                  onLens={setLens}
+                  governmentOnly={sector === 'government'}
+                  dark={theme !== 'day'}
+                  onLocate={(h) => {
+                    setSheetOpen(false);
+                    locateHex(h);
+                  }}
+                  onClose={() => toggleCoverage(false)}
+                />
+              </div>
+            ) : (
             <div className={sheetOpen ? 'scroll-thin max-h-[60vh] overflow-y-auto' : 'max-h-[176px] overflow-hidden'}>
               <IndexPanel
                 sector={sector}
@@ -445,7 +531,17 @@ export function App() {
                 }}
               />
             </div>
-            {!sheetOpen && (
+            )}
+            {!sheetOpen && coverageOn && (
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-[12.5px] text-ink-muted hover:bg-line"
+              >
+                <ChevronUp size={14} /> {t.hotspotsTitle[lens]}
+              </button>
+            )}
+            {!sheetOpen && !coverageOn && (
               <div className="mt-1 grid grid-cols-2 gap-1 text-[12.5px] text-ink-muted">
                 <button type="button" onClick={() => setSheetOpen(true)} className="flex items-center justify-center gap-1 rounded-lg py-1.5 hover:bg-line">
                   <ChevronUp size={14} /> {t.governorates}
@@ -475,6 +571,7 @@ export function App() {
       </AnimatePresence>
 
       {canHover && !presenting && <HoverCard hover={hover && hover.school.id !== selected?.id ? hover : null} />}
+      {canHover && coverageOn && !hover && <HexCard hover={hexHover} lens={lens} governmentOnly={sector === 'government'} />}
 
       <DetailPanel
         school={presenting ? null : selected}

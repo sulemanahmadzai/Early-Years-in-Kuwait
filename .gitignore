@@ -8,3 +8,5 @@ Untitled document*.md
 .env*
 # Source documents (large); the extracted lists are committed instead
 data/moe/*.pdf
+# Population rasters (large, re-downloadable); the aggregated hex grid in src/data is committed
+data/population/*.tif

@@ -1,4 +1,4 @@
-import { Activity, LocateFixed, Minus, Moon, Network, Plus, Presentation, Satellite, Sun } from 'lucide-react';
+import { Activity, Hexagon, LocateFixed, Minus, Moon, Network, Plus, Presentation, Satellite, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useWords } from '../lib/i18n';
 import type { MapTheme } from '../lib/types';
@@ -14,6 +14,9 @@ interface Props {
   onHome: () => void;
   onPresent: () => void;
   compact: boolean;
+  /** Coverage view on/off; the grid and pulse switches step aside while it's on. */
+  coverage: boolean;
+  onCoverage: (on: boolean) => void;
 }
 
 const THEME_ICONS: { id: MapTheme; icon: ReactNode }[] = [
@@ -23,7 +26,7 @@ const THEME_ICONS: { id: MapTheme; icon: ReactNode }[] = [
 ];
 
 export function MapControls(props: Props) {
-  const { showWeave, onWeave, showPulses, onPulses, theme, onTheme, onZoom, onHome, onPresent, compact } = props;
+  const { showWeave, onWeave, showPulses, onPulses, theme, onTheme, onZoom, onHome, onPresent, compact, coverage, onCoverage } = props;
   const { t } = useWords();
 
   // Phones get one slim column of icons; pinch-zoom replaces the zoom buttons.
@@ -32,10 +35,13 @@ export function MapControls(props: Props) {
     const next = THEME_ICONS[(current + 1) % THEME_ICONS.length];
     return (
       <div className="glass flex flex-col gap-0.5 rounded-2xl p-1">
-        <IconButton label={showWeave ? t.hideGrid : t.showGrid} active={showWeave} onClick={() => onWeave(!showWeave)}>
+        <IconButton label={t.coverage} active={coverage} onClick={() => onCoverage(!coverage)}>
+          <Hexagon size={16} strokeWidth={1.6} />
+        </IconButton>
+        <IconButton label={showWeave ? t.hideGrid : t.showGrid} active={showWeave && !coverage} onClick={() => onWeave(!showWeave)}>
           <Network size={16} strokeWidth={1.6} />
         </IconButton>
-        {showWeave && (
+        {showWeave && !coverage && (
           <IconButton label={showPulses ? t.stopPulse : t.showPulse} active={showPulses} onClick={() => onPulses(!showPulses)}>
             <Activity size={16} strokeWidth={1.6} />
           </IconButton>
@@ -53,8 +59,10 @@ export function MapControls(props: Props) {
   return (
     <div className="flex flex-row items-end gap-2">
       <div className="glass flex flex-row items-center gap-1 rounded-2xl p-1.5">
-        <Switch label={t.grid} on={showWeave} onChange={onWeave} />
-        <Switch label={t.pulse} on={showWeave && showPulses} disabled={!showWeave} onChange={onPulses} />
+        <Switch label={t.coverage} on={coverage} onChange={onCoverage} icon={<Hexagon size={14} strokeWidth={1.7} />} />
+        <Divider />
+        <Switch label={t.grid} on={showWeave && !coverage} disabled={coverage} onChange={onWeave} />
+        <Switch label={t.pulse} on={showWeave && showPulses && !coverage} disabled={!showWeave || coverage} onChange={onPulses} />
         <Divider />
         <div className="flex gap-0.5" role="radiogroup" aria-label={t.mapStyle}>
           {THEME_ICONS.map((th) => (
@@ -126,8 +134,8 @@ function IconButton(props: { label: string; active?: boolean; role?: string; onC
   );
 }
 
-function Switch(props: { label: string; on: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
-  const { label, on, disabled, onChange } = props;
+function Switch(props: { label: string; on: boolean; disabled?: boolean; onChange: (on: boolean) => void; icon?: ReactNode }) {
+  const { label, on, disabled, onChange, icon } = props;
   return (
     <button
       type="button"
@@ -137,7 +145,10 @@ function Switch(props: { label: string; on: boolean; disabled?: boolean; onChang
       onClick={() => onChange(!on)}
       className="flex h-9 items-center gap-2 rounded-xl px-2.5 text-[13px] transition-colors hover:bg-line disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
     >
-      <span className={on ? 'text-ink' : 'text-ink-muted'}>{label}</span>
+      <span className={`flex items-center gap-1.5 ${on ? 'text-ink' : 'text-ink-muted'}`}>
+        {icon}
+        {label}
+      </span>
       <span className={`relative h-[18px] w-[30px] rounded-full transition-colors ${on ? 'bg-ink' : 'bg-line-strong'}`}>
         <span className={`absolute top-[3px] size-3 rounded-full transition-all duration-200 ${on ? 'start-[15px] bg-[var(--page)]' : 'start-[3px] bg-ink-muted'}`} />
       </span>

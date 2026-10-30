@@ -13,6 +13,9 @@ export interface Slide {
   threads: number;
   kinds: Record<Kind, number>;
   sectors: Record<Sector, number>;
+  /** The coverage slide: children under five, and those more than 2 km from a school. */
+  children?: number;
+  farChildren?: number;
 }
 
 interface Props {
@@ -26,6 +29,7 @@ const AUTOPLAY_MS = 9000;
 const TITLES: Record<string, { en: string; ar: string }> = {
   overview: { en: 'Early years in Kuwait', ar: 'الطفولة المبكرة في الكويت' },
   grid: { en: 'One connected grid', ar: 'شبكة واحدة مترابطة' },
+  gaps: { en: 'Where the gaps are', ar: 'أين الفجوات' },
   ...GOVERNORATES,
 };
 
@@ -36,7 +40,9 @@ export function PresentationOverlay({ slides, index, onIndex, onExit }: Props) {
   const last = slides.length - 1;
   const other = lang === 'ar' ? 'en' : 'ar';
   const summary =
-    slide.id === 'overview'
+    slide.id === 'gaps'
+      ? t.gapsSummary(slide.farChildren ?? 0)
+      : slide.id === 'overview'
       ? t.overviewSummary(slide.count)
       : slide.id === 'grid'
         ? t.gridSummary(slide.threads)
@@ -93,6 +99,10 @@ export function PresentationOverlay({ slides, index, onIndex, onExit }: Props) {
             </div>
             <div className="h-5" />
             <p className="tabular text-[18px] font-light text-ink">{summary}</p>
+            {slide.id === 'gaps' ? (
+              <p className="tabular mt-3 text-[14px] text-ink-muted">{t.gapsTotal(slide.children ?? 0)}</p>
+            ) : (
+            <>
             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
               {KIND_ORDER.map((k) => (
                 <span key={k} className="tabular flex items-center gap-2 text-[14px] text-ink-muted">
@@ -109,6 +119,8 @@ export function PresentationOverlay({ slides, index, onIndex, onExit }: Props) {
                 </span>
               ))}
             </div>
+            </>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

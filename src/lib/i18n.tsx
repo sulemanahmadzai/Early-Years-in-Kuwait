@@ -5,6 +5,8 @@ import type { Kind, School, Sector } from './types';
 export type Lang = 'en' | 'ar';
 
 const fmt = (n: number) => n.toLocaleString('en-US');
+// Population figures are estimates: round them so they don't look more precise than they are.
+const approx = (n: number) => fmt(n >= 1000 ? Math.round(n / 100) * 100 : Math.round(n / 10) * 10);
 
 const en = {
   title: 'Early years in Kuwait',
@@ -95,6 +97,34 @@ const en = {
   toastCopyBlocked: 'Copying was blocked by the browser. Try again after clicking the page.',
   skipIntro: 'Skip intro',
   governorates: 'Governorates',
+  coverage: 'Coverage',
+  coverageIntro: 'Where young children live, and how close the nearest nursery or kindergarten is.',
+  lenses: { perSchool: 'Children per school', distance: 'Distance to a school' } as Record<'perSchool' | 'distance', string>,
+  legendTitle: {
+    perSchool: 'Children under five per school, within 1.5 km',
+    distance: 'Distance to the nearest school',
+  } as Record<'perSchool' | 'distance', string>,
+  legend: {
+    perSchool: ['Up to 150', '150–300', '300–600', 'Over 600', 'None nearby'],
+    distance: ['Under 1 km', '1–2 km', '2–3 km', '3–5 km', 'Over 5 km'],
+  } as Record<'perSchool' | 'distance', string[]>,
+  heightNote: 'Column height: children under five living there',
+  schoolNoun: (government: boolean): string => (government ? 'government kindergarten' : 'nursery or kindergarten'),
+  childrenTotal: (n: number) => `${approx(n)} children under five live in Kuwait.`,
+  childrenFar: (n: number, noun: string) => `${approx(n)} of them live more than 2 km from the nearest ${noun}.`,
+  hotspotsTitle: { perSchool: 'Most underserved', distance: 'Furthest from a school' } as Record<'perSchool' | 'distance', string>,
+  near: (place: string) => `near ${place}`,
+  childrenAround: (n: number) => `≈ ${approx(n)} children under five within 1.5 km`,
+  childrenHere: (n: number) => `≈ ${approx(n)} children under five here`,
+  noSchoolNear: (noun: string) => `No ${noun} within 1.5 km`,
+  perSchoolValue: (n: number) => `≈ ${approx(n)} children per school`,
+  schoolsNear: (n: number) => `${fmt(n)} ${n === 1 ? 'school' : 'schools'} within 1.5 km`,
+  nearestSchool: (km: string) => `Nearest school ${km} away`,
+  coverageSource: 'Children under five: WorldPop 2026 estimates on a 100 m grid. Indicative only, as school sizes are not known.',
+  backToSchools: 'Back to the schools view',
+  gapsTitle: 'Where the gaps are',
+  gapsSummary: (n: number) => `${approx(n)} children under five live more than 2 km from a nursery or kindergarten`,
+  gapsTotal: (n: number) => `${approx(n)} children under five in Kuwait`,
 };
 
 type Dict = typeof en;
@@ -184,6 +214,34 @@ const ar: Dict = {
   toastCopyBlocked: 'منع المتصفح النسخ. حاول مرة أخرى بعد النقر على الصفحة.',
   skipIntro: 'تخطي المقدمة',
   governorates: 'المحافظات',
+  coverage: 'التغطية',
+  coverageIntro: 'أين يعيش الأطفال الصغار، وكم تبعد عنهم أقرب حضانة أو روضة.',
+  lenses: { perSchool: 'الأطفال لكل مدرسة', distance: 'المسافة إلى مدرسة' },
+  legendTitle: {
+    perSchool: 'الأطفال دون الخامسة لكل مدرسة، ضمن 1.5 كم',
+    distance: 'المسافة إلى أقرب مدرسة',
+  },
+  legend: {
+    perSchool: ['حتى 150', '150–300', '300–600', 'أكثر من 600', 'لا مدرسة قريبة'],
+    distance: ['أقل من 1 كم', '1–2 كم', '2–3 كم', '3–5 كم', 'أكثر من 5 كم'],
+  },
+  heightNote: 'ارتفاع العمود: عدد الأطفال دون الخامسة',
+  schoolNoun: (government) => (government ? 'روضة حكومية' : 'حضانة أو روضة'),
+  childrenTotal: (n) => `يعيش في الكويت ${approx(n)} طفل دون الخامسة.`,
+  childrenFar: (n, noun) => `منهم ${approx(n)} على بعد أكثر من 2 كم من أقرب ${noun}.`,
+  hotspotsTitle: { perSchool: 'الأكثر حاجة', distance: 'الأبعد عن المدارس' },
+  near: (place) => `قرب ${place}`,
+  childrenAround: (n) => `≈ ${approx(n)} طفل دون الخامسة ضمن 1.5 كم`,
+  childrenHere: (n) => `≈ ${approx(n)} طفل دون الخامسة هنا`,
+  noSchoolNear: (noun) => `لا توجد ${noun} ضمن 1.5 كم`,
+  perSchoolValue: (n) => `≈ ${approx(n)} طفل لكل مدرسة`,
+  schoolsNear: (n) => `${fmt(n)} مدرسة ضمن 1.5 كم`,
+  nearestSchool: (km) => `أقرب مدرسة على بعد ${km}`,
+  coverageSource: 'الأطفال دون الخامسة: تقديرات WorldPop لعام 2026 بدقة 100 م. الأرقام إرشادية لأن سعة المدارس غير معروفة.',
+  backToSchools: 'العودة إلى عرض المدارس',
+  gapsTitle: 'أين الفجوات',
+  gapsSummary: (n) => `${approx(n)} طفل دون الخامسة يعيشون على بعد أكثر من 2 كم من أقرب حضانة أو روضة`,
+  gapsTotal: (n) => `${approx(n)} طفل دون الخامسة في الكويت`,
 };
 
 const DICTS: Record<Lang, Dict> = { en, ar };
