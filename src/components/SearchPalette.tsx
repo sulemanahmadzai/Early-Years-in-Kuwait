@@ -3,7 +3,8 @@ import Fuse from 'fuse.js';
 import { AnimatePresence, motion } from 'motion/react';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { GOVERNORATES, KINDS, governorateName } from '../lib/meta';
+import { AREA_AR, useWords } from '../lib/i18n';
+import { GOVERNORATES, KINDS } from '../lib/meta';
 import type { School } from '../lib/types';
 
 interface Props {
@@ -16,19 +17,22 @@ interface Props {
 }
 
 export function SearchButton({ count, onClick, compact }: { count: number; onClick: () => void; compact: boolean }) {
+  const { t } = useWords();
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Search schools"
+      aria-label={t.searchLabel}
       className={`glass flex h-11 items-center gap-2.5 rounded-2xl text-ink-muted transition-colors hover:text-ink ${compact ? 'w-11 justify-center' : 'w-[300px] px-4'}`}
     >
       <Search size={16} strokeWidth={1.7} />
       {!compact && (
         <>
-          <span className="flex-1 text-left text-[13.5px]">Search {count.toLocaleString()} schools or an area</span>
-          <kbd className="rounded-md border border-line-strong px-1.5 py-0.5 font-sans text-[11px] text-ink-faint">{mac ? '⌘K' : 'Ctrl K'}</kbd>
+          <span className="flex-1 text-start text-[13.5px]">{t.searchButton(count)}</span>
+          <kbd dir="ltr" className="rounded-md border border-line-strong px-1.5 py-0.5 font-sans text-[11px] text-ink-faint">
+            {mac ? '⌘K' : 'Ctrl K'}
+          </kbd>
         </>
       )}
     </button>
@@ -36,28 +40,42 @@ export function SearchButton({ count, onClick, compact }: { count: number; onCli
 }
 
 export function SearchPalette({ open, schools, hidden, onOpenChange, onSchool, onGovernorate }: Props) {
+  const { lang, t, name, otherName, area, governorate } = useWords();
   const [query, setQuery] = useState('');
   // Each search starts fresh.
   useEffect(() => {
     if (open) setQuery('');
   }, [open]);
+
+  // Areas and governorates are searchable in both languages, whichever the interface uses.
   const fuse = useMemo(
     () =>
-      new Fuse(schools, {
-        keys: [
-          { name: 'name', weight: 3 },
-          { name: 'nameAr', weight: 3 },
-          { name: 'area', weight: 1.5 },
-          { name: 'governorate', weight: 1 },
-        ],
-        threshold: 0.32,
-        ignoreLocation: true,
-      }),
+      new Fuse(
+        schools.map((s) => ({
+          school: s,
+          name: s.name,
+          nameAr: s.nameAr ?? '',
+          area: s.area ?? '',
+          areaAr: (s.area && AREA_AR[s.area]) ?? '',
+          governorate: s.governorate ? `${GOVERNORATES[s.governorate]?.en} ${GOVERNORATES[s.governorate]?.ar}` : '',
+        })),
+        {
+          keys: [
+            { name: 'name', weight: 3 },
+            { name: 'nameAr', weight: 3 },
+            { name: 'area', weight: 1.5 },
+            { name: 'areaAr', weight: 1.5 },
+            { name: 'governorate', weight: 1 },
+          ],
+          threshold: 0.32,
+          ignoreLocation: true,
+        },
+      ),
     [schools],
   );
 
   const q = query.trim();
-  const results = q ? fuse.search(q, { limit: 40 }).map((r) => r.item) : [];
+  const results = q ? fuse.search(q, { limit: 40 }).map((r) => r.item.school) : [];
   const governorateHits = q
     ? Object.entries(GOVERNORATES).filter(([key, g]) => [key, g.en, g.ar].some((n) => n.toLowerCase().includes(q.toLowerCase())))
     : [];
@@ -80,7 +98,7 @@ export function SearchPalette({ open, schools, hidden, onOpenChange, onSchool, o
             className="w-full max-w-[560px]"
           >
             <Command
-              label="Search schools"
+              label={t.searchLabel}
               shouldFilter={false}
               loop
               className="glass overflow-hidden rounded-2xl !bg-[var(--surface-strong)]"
@@ -92,17 +110,14 @@ export function SearchPalette({ open, schools, hidden, onOpenChange, onSchool, o
                   autoFocus
                   value={query}
                   onValueChange={setQuery}
-                  placeholder="School name in English or Arabic, or an area like Salmiya"
+                  dir="auto"
+                  placeholder={t.searchPlaceholder}
                   className="h-14 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-faint focus-visible:outline-none"
                 />
               </div>
               <Command.List className="scroll-thin max-h-[52vh] overflow-y-auto p-2">
-                {q && (
-                  <Command.Empty className="px-3 py-8 text-center text-[13.5px] text-ink-muted">
-                    Nothing matches “{q}”. Try the Arabic name, or an area such as Jabriya or Mangaf.
-                  </Command.Empty>
-                )}
-                {!q && <p className="px-3 py-6 text-center text-[13px] text-ink-faint">Start typing to find a school.</p>}
+                {q && <Command.Empty className="px-3 py-8 text-center text-[13.5px] text-ink-muted">{t.noMatch(q)}</Command.Empty>}
+                {!q && <p className="px-3 py-6 text-center text-[13px] text-ink-faint">{t.startTyping}</p>}
                 {governorateHits.map(([key, g]) => (
                   <Command.Item
                     key={key}
@@ -111,37 +126,42 @@ export function SearchPalette({ open, schools, hidden, onOpenChange, onSchool, o
                     className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 data-[selected=true]:bg-line"
                   >
                     <span className="size-2.5 rotate-45 border border-ink-muted" />
-                    <span className="flex-1 text-[14px] text-ink">{g.en} governorate</span>
-                    <span dir="rtl" lang="ar" className="text-[13px] text-ink-faint">
-                      {g.ar}
+                    <span className="flex-1 text-start text-[14px] text-ink">{t.governorateResult(governorate(key) ?? key)}</span>
+                    <span dir="auto" className="text-[13px] text-ink-faint">
+                      {lang === 'ar' ? g.en : g.ar}
                     </span>
                   </Command.Item>
                 ))}
-                {results.map((s) => (
-                  <Command.Item
-                    key={s.id}
-                    value={s.id}
-                    onSelect={() => onSchool(s)}
-                    className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 data-[selected=true]:bg-line"
-                  >
-                    <span className="size-2.5 shrink-0 rounded-full" style={{ background: KINDS[s.kind].css }} />
-                    <span className="min-w-0 flex-1">
-                      <span dir="auto" className="block truncate text-start text-[14px] text-ink">{s.name}</span>
-                      {s.nameAr && s.nameAr !== s.name && (
-                        <span dir="rtl" lang="ar" className="block truncate text-right text-[12.5px] text-ink-faint">
-                          {s.nameAr}
+                {results.map((s) => {
+                  const alt = otherName(s);
+                  return (
+                    <Command.Item
+                      key={s.id}
+                      value={s.id}
+                      onSelect={() => onSchool(s)}
+                      className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 data-[selected=true]:bg-line"
+                    >
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ background: KINDS[s.kind].css }} />
+                      <span className="min-w-0 flex-1">
+                        <span dir="auto" className="block truncate text-start text-[14px] text-ink">
+                          {name(s)}
                         </span>
-                      )}
-                    </span>
-                    {hidden.has(s.id) ? (
-                      <span className="shrink-0 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-ink-muted" title="Choosing it puts it back on the map">
-                        Hidden
+                        {alt && (
+                          <span dir="auto" className="block truncate text-start text-[12.5px] text-ink-faint">
+                            {alt}
+                          </span>
+                        )}
                       </span>
-                    ) : (
-                      <span className="shrink-0 text-[12px] text-ink-muted">{s.area ?? governorateName(s.governorate)}</span>
-                    )}
-                  </Command.Item>
-                ))}
+                      {hidden.has(s.id) ? (
+                        <span className="shrink-0 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-ink-muted" title={t.hiddenHint}>
+                          {t.hidden}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-[12px] text-ink-muted">{area(s.area) ?? governorate(s.governorate)}</span>
+                      )}
+                    </Command.Item>
+                  );
+                })}
               </Command.List>
             </Command>
           </motion.div>

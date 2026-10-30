@@ -1,5 +1,6 @@
 import type { StyleSpecification, LayerSpecification, ExpressionSpecification } from 'maplibre-gl';
 import type { MapTheme } from '../lib/types';
+import type { Lang } from '../lib/i18n';
 import kuwaitOutline from '../../data/geo/kuwait-outline.geojson?raw';
 
 // OpenFreeMap: free OpenStreetMap vector tiles, no key or account needed.
@@ -81,14 +82,15 @@ const PALETTES: Record<MapTheme, Palette> = {
   },
 };
 
-const NAME: ExpressionSpecification = ['coalesce', ['get', 'name:en'], ['get', 'name:latin'], ['get', 'name']];
-// The Gulf is the Arabian Gulf in Kuwait; OpenStreetMap's English label says otherwise.
-const WATER_NAME: ExpressionSpecification = [
-  'case',
-  ['in', 'Persian Gulf', NAME],
-  'Arabian Gulf',
-  NAME,
-];
+const NAMES: Record<Lang, ExpressionSpecification> = {
+  en: ['coalesce', ['get', 'name:en'], ['get', 'name:latin'], ['get', 'name']],
+  ar: ['coalesce', ['get', 'name:ar'], ['get', 'name'], ['get', 'name:en']],
+};
+// The Gulf is the Arabian Gulf (الخليج العربي) in Kuwait; OpenStreetMap's labels say otherwise.
+const waterName = (lang: Lang): ExpressionSpecification =>
+  lang === 'ar'
+    ? ['case', ['in', 'الفارسي', NAMES.ar], 'الخليج العربي', NAMES.ar]
+    : ['case', ['in', 'Persian Gulf', NAMES.en], 'Arabian Gulf', NAMES.en];
 
 // A rectangle around the region with Kuwait cut out, used to dim everything beyond the border.
 function outsideMask(): GeoJSON.FeatureCollection {
@@ -110,7 +112,8 @@ function outsideMask(): GeoJSON.FeatureCollection {
 const mask = outsideMask();
 const outline = JSON.parse(kuwaitOutline) as GeoJSON.FeatureCollection;
 
-export function buildStyle(theme: MapTheme): StyleSpecification {
+export function buildStyle(theme: MapTheme, lang: Lang = 'en'): StyleSpecification {
+  const NAME = NAMES[lang];
   const p = PALETTES[theme];
   const satellite = theme === 'satellite';
 
@@ -180,7 +183,7 @@ export function buildStyle(theme: MapTheme): StyleSpecification {
       source: 'omt',
       'source-layer': 'water_name',
       layout: {
-        'text-field': WATER_NAME,
+        'text-field': waterName(lang),
         'text-font': ['Noto Sans Italic'],
         'text-size': 13,
         'text-letter-spacing': 0.2,

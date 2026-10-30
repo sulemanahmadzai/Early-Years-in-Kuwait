@@ -224,6 +224,104 @@ const schools = groups
 
 // Photos: with --photos, download each one into public/photos so the site never depends on
 // Google's image links staying alive. Already-downloaded photos are always used.
+// ---- Government or private -------------------------------------------------
+// Government kindergartens are the ones in the Ministry of Education's 2024–25 school directory
+// (extracted by scripts/moe/kindergartens.mjs). Each Ministry entry is matched to the map by
+// phone number, else by name within its district (spelling variants, a missing "ال", reordered
+// words and the PDF's few unreadable letters are tolerated). Everything else is private: all
+// nurseries (حضانة) are privately run, and so are kindergartens missing from the directory.
+const MOE = readJson(path.join(ROOT, 'data/moe/government-kindergartens.json'), []);
+const coreName = (t) =>
+  normName(t)
+    .replace(/^(روضه اطفال|رياض الاطفال|رياض اطفال|روضه)\s+/, '')
+    .replace(/\s*[-–(].*$/, '')
+    .trim();
+const dropAl = (t) => t.replace(/(^|\s)ال/g, '$1');
+const lastDigits = (p) => (p ?? '').replace(/\D/g, '').slice(-8);
+const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function editDistance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cur = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+  }
+  return row[b.length];
+}
+// Does a school's name (already reduced to its core) name this Ministry kindergarten?
+// The PDF's unreadable letters arrive as "…"; carry them through normalisation as "۞" (an Arabic-block
+// sign normName keeps) and treat each run as a gap of 1–4 letters.
+const GAP = '۞';
+function sameKindergarten(moeName, schoolCore) {
+  const moeCore = coreName(moeName.replaceAll('…', GAP)).replace(new RegExp(`\\s*${GAP}[\\s${GAP}]*`, 'g'), GAP);
+  if (moeCore.includes(GAP)) {
+    const re = new RegExp(`^${moeCore.replace(/\s+/g, '').split(GAP).map(escapeRe).join('.{1,4}')}`);
+    if (re.test(schoolCore.replace(/\s+/g, ''))) return true;
+    // Or every readable word of the Ministry name appears in the school's name (word order differs).
+    const words = moeCore.split(new RegExp(`[\\s${GAP}]+`)).filter((w) => w.length > 1);
+    const have = new Set(schoolCore.split(' '));
+    return words.length >= 2 && words.every((w) => have.has(w));
+  }
+  const a = dropAl(moeCore);
+  const b = dropAl(schoolCore);
+  if (a === b || b.startsWith(`${a} `)) return true; // Google often appends the area
+  return a.length >= 4 && editDistance(a, b) <= 1; // one-letter spelling differences (حيان / حبان)
+}
+
+const looksLikeKindergarten = (s) => [s.nameAr, s.name].some((n) => n && /^(روض|رياض)/.test(normName(n)));
+const moeOf = new Map(); // school index → Ministry entry
+for (const m of MOE) {
+  // Name within the district first: phone numbers are sometimes shared between neighbouring
+  // kindergartens on Google, so a phone alone only decides when no name matches.
+  const byName = schools.filter((s) => looksLikeKindergarten(s) && [s.nameAr, s.name].some((n) => n && sameKindergarten(m.name, coreName(n))));
+  let hits = byName.filter((s) => s.governorate === m.district);
+  if (!hits.length) {
+    const phones = [...m.phones, ...(m.paci && /^[2569]\d{7}$/.test(m.paci) ? [m.paci] : [])];
+    hits = schools.filter((s) => s.phone && phones.includes(lastDigits(s.phone)) && !moeOf.has(schools.indexOf(s)));
+  }
+  // Education districts don't follow governorate borders exactly: accept a unique match next door.
+  if (!hits.length && byName.length === 1) hits = byName;
+  for (const s of hits) if (!moeOf.has(schools.indexOf(s))) moeOf.set(schools.indexOf(s), m);
+}
+// Two pins matching the same Ministry kindergarten within 2 km are one school (typically an
+// English-named pin and an Arabic-named one): keep the better-documented pin.
+let moeMerged = 0;
+const pinsByMoe = Object.groupBy([...moeOf.entries()], ([, m]) => MOE.indexOf(m));
+const dropped = new Set();
+for (const pins of Object.values(pinsByMoe)) {
+  const list = pins.map(([i]) => i).sort((a, b) => quality(schools[b]) - quality(schools[a]));
+  const [keep, ...rest] = list;
+  for (const i of rest) {
+    if (distanceKm(schools[keep], schools[i]) > 2) continue;
+    for (const key of ['nameAr', 'area', 'address', 'phone', 'website', 'rating', 'photo']) schools[keep][key] ??= schools[i][key];
+    dropped.add(i);
+    moeMerged++;
+  }
+}
+for (const [i, m] of moeOf) {
+  const s = schools[i];
+  s.sector = 'government';
+  s.kind = 'kindergarten';
+  s.founded = m.founded;
+  // The directory's phone is official; use it when Google has none.
+  s.phone ??= m.phones[0] ? `+965 ${m.phones[0].slice(0, 4)} ${m.phones[0].slice(4)}` : null;
+}
+for (const s of schools) {
+  s.sector ??= 'private';
+  s.founded ??= null;
+}
+for (const i of [...dropped].sort((a, b) => b - a)) schools.splice(i, 1);
+const moeFound = new Set([...moeOf.values()]).size;
+// Ministry kindergartens with no pin on Google Maps, for the record.
+writeJson(
+  path.join(RAW_DIR, 'moe-not-on-map.json'),
+  MOE.filter((m) => ![...moeOf.values()].includes(m)).map(({ district, area, name, phones }) => ({ district, area, name, phones })),
+);
+
 for (const s of schools) if (BAD_PHOTOS[s.id]) s.photo = null;
 const PHOTO_DIR = path.join(ROOT, 'public/photos');
 fs.mkdirSync(PHOTO_DIR, { recursive: true });
@@ -257,6 +355,10 @@ console.log(`Discovered ${Object.keys(discovered).length}, with details ${Object
 console.log(`By kind — ${count('kind')}`);
 console.log(`By governorate — ${count('governorate')}`);
 console.log(`With phone ${schools.filter((s) => s.phone).length}, photo ${schools.filter((s) => s.photo).length}, Arabic name ${schools.filter((s) => s.nameAr).length}`);
+console.log(
+  `Government ${schools.filter((s) => s.sector === 'government').length}, private ${schools.filter((s) => s.sector === 'private').length}` +
+    ` — ${moeFound} of ${MOE.length} Ministry kindergartens found on the map, ${moeMerged} duplicate pins merged`,
+);
 if (arg('report') === true) {
   console.log('\nRejected:');
   for (const [reason, names] of Object.entries(rejected).sort((a, b) => b[1].length - a[1].length)) {

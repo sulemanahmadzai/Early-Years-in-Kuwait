@@ -6,8 +6,8 @@ import { ChevronUp, ListChecks } from 'lucide-react';
 import schoolsData from './data/schools.json';
 import { SchoolMap, INTRO_SECONDS } from './map/SchoolMap';
 import { TitleBlock } from './components/TitleBlock';
-import { IndexPanel } from './components/IndexPanel';
-import { MapControls } from './components/MapControls';
+import { IndexPanel, type SectorFilter } from './components/IndexPanel';
+import { LanguageToggle, MapControls } from './components/MapControls';
 import { HoverCard } from './components/HoverCard';
 import { DetailPanel } from './components/DetailPanel';
 import { SearchButton, SearchPalette } from './components/SearchPalette';
@@ -15,11 +15,12 @@ import { PresentationOverlay, type Slide } from './components/PresentationOverla
 import { SchoolManager } from './components/SchoolManager';
 import { Toast, type ToastMessage } from './components/Toast';
 import { loadHidden, saveHidden, selectionLink } from './lib/selection';
+import { useWords } from './lib/i18n';
 import { GOVERNORATES, KIND_ORDER } from './lib/meta';
 import { buildNetwork, distanceKm } from './lib/network';
 import { coreBoundsOf } from './lib/geo';
 import { prefersReducedMotion, useMediaQuery } from './lib/hooks';
-import type { Kind, MapTheme, School } from './lib/types';
+import type { Kind, MapTheme, School, Sector } from './lib/types';
 
 const SCHOOLS = schoolsData as School[];
 const ALL_BOUNDS = coreBoundsOf(SCHOOLS);
@@ -29,17 +30,24 @@ const HOME_BEARING = -8;
 
 const countKinds = (list: School[]) =>
   Object.fromEntries(KIND_ORDER.map((k) => [k, list.filter((s) => s.kind === k).length])) as Record<Kind, number>;
+const countSectors = (list: School[]): Record<Sector, number> => {
+  const government = list.filter((s) => s.sector === 'government').length;
+  return { government, private: list.length - government };
+};
 
 export function App() {
   const mapRef = useRef<MapRef | null>(null);
   const isPhone = useMediaQuery('(max-width: 720px)');
   const canHover = useMediaQuery('(hover: hover) and (pointer: fine)');
   const skipIntro = useMemo(() => new URLSearchParams(location.search).has('nointro') || prefersReducedMotion(), []);
+  const { lang, t, name: schoolName } = useWords();
+  const rtl = lang === 'ar';
 
   const [theme, setTheme] = useState<MapTheme>('dusk');
   const [showWeave, setShowWeave] = useState(true);
   const [showPulses, setShowPulses] = useState(true);
   const [kinds, setKinds] = useState<Set<Kind>>(() => new Set(KIND_ORDER));
+  const [sector, setSector] = useState<SectorFilter>('all');
   const [governorate, setGovernorate] = useState<string | null>(null);
   const [hover, setHover] = useState<{ school: School; x: number; y: number } | null>(null);
   const [selected, setSelected] = useState<School | null>(null);
@@ -62,10 +70,15 @@ export function App() {
   useEffect(() => saveHidden(hidden), [hidden]);
 
   const shown = useMemo(() => SCHOOLS.filter((s) => !hidden.has(s.id)), [hidden]);
-  const visible = useMemo(() => shown.filter((s) => kinds.has(s.kind)), [shown, kinds]);
+  const inSector = useCallback((s: School) => sector === 'all' || s.sector === sector, [sector]);
+  const visible = useMemo(() => shown.filter((s) => kinds.has(s.kind) && inSector(s)), [shown, kinds, inSector]);
   const network = useMemo(() => buildNetwork(visible), [visible]);
-  const inScope = useMemo(() => (governorate ? shown.filter((s) => s.governorate === governorate) : shown), [governorate, shown]);
-  const kindCounts = useMemo(() => countKinds(inScope), [inScope]);
+  const inGovernorate = useMemo(() => (governorate ? shown.filter((s) => s.governorate === governorate) : shown), [governorate, shown]);
+  const kindCounts = useMemo(() => countKinds(inGovernorate.filter(inSector)), [inGovernorate, inSector]);
+  const sectorCounts = useMemo(() => {
+    const base = inGovernorate.filter((s) => kinds.has(s.kind));
+    return { all: base.length, ...countSectors(base) };
+  }, [inGovernorate, kinds]);
   const governorateCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const s of visible) if (s.governorate) counts[s.governorate] = (counts[s.governorate] ?? 0) + 1;
@@ -85,8 +98,10 @@ export function App() {
 
   const padding = useCallback(
     (): PaddingOptions =>
-      isPhone ? { top: 110, bottom: 190, left: 28, right: 72 } : { top: 150, bottom: 70, left: 380, right: 130 },
-    [isPhone],
+      isPhone
+        ? { top: 110, bottom: 190, left: rtl ? 72 : 28, right: rtl ? 28 : 72 }
+        : { top: 150, bottom: 70, left: rtl ? 130 : 380, right: rtl ? 380 : 130 }, // the index panel's side
+    [isPhone, rtl],
   );
 
   const flyToBounds = useCallback(
@@ -115,11 +130,13 @@ export function App() {
         zoom: Math.max(map.getZoom(), 14.6),
         pitch: 52,
         duration: 1900,
-        padding: isPhone ? { top: 40, bottom: innerHeight * 0.55, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 400 },
+        padding: isPhone
+          ? { top: 40, bottom: innerHeight * 0.55, left: 0, right: 0 }
+          : { top: 0, bottom: 0, left: rtl ? 400 : 0, right: rtl ? 0 : 400 }, // the detail panel's side
         essential: true,
       });
     },
-    [isPhone],
+    [isPhone, rtl],
   );
 
   const selectGovernorate = useCallback(
@@ -165,37 +182,15 @@ export function App() {
 
   const slides = useMemo<Slide[]>(() => {
     const total = shown.length;
-    const list: Slide[] = [
-      {
-        id: 'overview',
-        title: 'Early years in Kuwait',
-        titleAr: 'الطفولة المبكرة في الكويت',
-        count: total,
-        summary: `${total.toLocaleString()} nurseries, kindergartens and preschools across six governorates`,
-        kinds: countKinds(shown),
-      },
-    ];
+    const all = { count: total, share: 1, threads: 0, kinds: countKinds(shown), sectors: countSectors(shown) };
+    const list: Slide[] = [{ id: 'overview', ...all }];
     for (const key of TOUR_ORDER) {
       const inGov = shown.filter((s) => s.governorate === key);
-      if (!inGov.length) continue;
-      list.push({
-        id: key,
-        title: GOVERNORATES[key].en,
-        titleAr: GOVERNORATES[key].ar,
-        count: inGov.length,
-        summary: `${inGov.length.toLocaleString()} schools, ${Math.round((inGov.length / total) * 100)}% of Kuwait's total`,
-        kinds: countKinds(inGov),
-      });
+      if (inGov.length) {
+        list.push({ id: key, count: inGov.length, share: inGov.length / total, threads: 0, kinds: countKinds(inGov), sectors: countSectors(inGov) });
+      }
     }
-    const threads = buildNetwork(shown).edges.length;
-    list.push({
-      id: 'grid',
-      title: 'One connected grid',
-      titleAr: 'شبكة واحدة مترابطة',
-      count: total,
-      summary: `${threads.toLocaleString()} threads join every school to its nearest neighbours`,
-      kinds: countKinds(shown),
-    });
+    list.push({ id: 'grid', ...all, threads: buildNetwork(shown).edges.length });
     return list;
   }, [shown]);
 
@@ -218,6 +213,7 @@ export function App() {
     setShowWeave(true);
     setShowPulses(true);
     setKinds(new Set(KIND_ORDER));
+    setSector('all');
     document.documentElement.requestFullscreen?.().catch(() => {});
     showSlide(0);
   }, [showSlide]);
@@ -291,31 +287,31 @@ export function App() {
       if (!changed.length) return;
       setSchoolsHidden(changed, hide);
       if (changed.length > 1) {
-        notify(`${hide ? 'Hid' : 'Showed'} ${changed.length.toLocaleString()} schools`, {
-          label: 'Undo',
+        notify(hide ? t.toastHidMany(changed.length) : t.toastShowedMany(changed.length), {
+          label: t.undo,
           run: () => setSchoolsHidden(changed, !hide),
         });
       }
     },
-    [hidden, notify, setSchoolsHidden],
+    [hidden, notify, setSchoolsHidden, t],
   );
 
   const hideSchool = useCallback(
     (school: School) => {
       setSchoolsHidden([school.id], true);
       setSelected(null);
-      notify(`Hidden from the map: ${school.name}`, { label: 'Undo', run: () => setSchoolsHidden([school.id], false) });
+      notify(t.toastHidden(schoolName(school)), { label: t.undo, run: () => setSchoolsHidden([school.id], false) });
     },
-    [notify, setSchoolsHidden],
+    [notify, schoolName, setSchoolsHidden, t],
   );
 
   const copySelectionLink = useCallback(() => {
     const link = selectionLink(SCHOOLS, hidden);
     navigator.clipboard
       ?.writeText(link)
-      .then(() => notify(`Link copied. It opens the map with these ${shown.length.toLocaleString()} schools.`))
-      .catch(() => notify('Copying was blocked by the browser. Try again after clicking the page.'));
-  }, [hidden, notify, shown.length]);
+      .then(() => notify(t.toastLinkCopied(shown.length)))
+      .catch(() => notify(t.toastCopyBlocked));
+  }, [hidden, notify, shown.length, t]);
 
   // A school switched off while its details are open closes the panel.
   useEffect(() => {
@@ -338,6 +334,7 @@ export function App() {
         schools={visible}
         network={network}
         theme={theme}
+        lang={lang}
         showWeave={showWeave}
         showPulses={showPulses}
         governorate={governorate}
@@ -356,18 +353,22 @@ export function App() {
         className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-44"
         style={{ background: 'linear-gradient(to bottom, color-mix(in srgb, var(--page) 78%, transparent), transparent)' }}
       />
-      {!presenting && <TitleBlock count={visibleCount} governorate={governorate} compact={isPhone} counting={introStartedAt !== null || skipIntro} />}
+      {!presenting && <TitleBlock count={visibleCount} governorate={governorate} sector={sector} compact={isPhone} counting={introStartedAt !== null || skipIntro} />}
 
       <AnimatePresence>
         {chrome && (
-          <motion.div key="search" {...reveal(0.1)} className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+          <motion.div key="search" {...reveal(0.1)} className="absolute end-4 top-4 z-20 flex gap-2 sm:end-6 sm:top-6">
+            <LanguageToggle compact={isPhone} />
             <SearchButton count={SCHOOLS.length} compact={isPhone} onClick={() => setSearchOpen(true)} />
           </motion.div>
         )}
 
         {chrome && !isPhone && !managerOpen && (
-          <motion.div key="index" {...reveal(0.2)} className="glass absolute bottom-6 left-6 z-20 w-[300px] rounded-3xl p-3">
+          <motion.div key="index" {...reveal(0.2)} className="glass absolute bottom-6 start-6 z-20 w-[300px] rounded-3xl p-3">
             <IndexPanel
+              sector={sector}
+              sectorCounts={sectorCounts}
+              onSector={setSector}
               kindCounts={kindCounts}
               kinds={kinds}
               onToggleKind={toggleKind}
@@ -378,7 +379,7 @@ export function App() {
               hiddenCount={hidden.size}
               onManage={() => setManagerOpen(true)}
             />
-            <p className="mt-2 px-2 text-[11px] text-ink-faint">Listings from Google Maps, October 2026</p>
+            <p className="mt-2 px-2 text-[11px] leading-snug text-ink-faint">{t.sources}</p>
           </motion.div>
         )}
 
@@ -387,8 +388,8 @@ export function App() {
             key="controls"
             {...reveal(0.3)}
             // On desktop the controls slide left to make room for the detail panel.
-            style={isPhone ? undefined : { right: selected ? 412 : 24 }}
-            className={`absolute z-20 transition-[right] duration-500 ease-out ${isPhone ? 'right-3 top-[76px]' : 'bottom-6'}`}
+            style={isPhone ? undefined : { insetInlineEnd: selected ? 412 : 24 }}
+            className={`absolute z-20 transition-[inset-inline-end] duration-500 ease-out ${isPhone ? 'end-3 top-[76px]' : 'bottom-6'}`}
           >
             <MapControls
               compact={isPhone}
@@ -422,8 +423,11 @@ export function App() {
             >
               <span className="h-1 w-10 rounded-full bg-line-strong" />
             </button>
-            <div className={sheetOpen ? 'scroll-thin max-h-[60vh] overflow-y-auto' : 'max-h-[118px] overflow-hidden'}>
+            <div className={sheetOpen ? 'scroll-thin max-h-[60vh] overflow-y-auto' : 'max-h-[176px] overflow-hidden'}>
               <IndexPanel
+                sector={sector}
+                sectorCounts={sectorCounts}
+                onSector={setSector}
                 kindCounts={kindCounts}
                 kinds={kinds}
                 onToggleKind={toggleKind}
@@ -444,10 +448,10 @@ export function App() {
             {!sheetOpen && (
               <div className="mt-1 grid grid-cols-2 gap-1 text-[12.5px] text-ink-muted">
                 <button type="button" onClick={() => setSheetOpen(true)} className="flex items-center justify-center gap-1 rounded-lg py-1.5 hover:bg-line">
-                  <ChevronUp size={14} /> Governorates
+                  <ChevronUp size={14} /> {t.governorates}
                 </button>
                 <button type="button" onClick={() => setManagerOpen(true)} className="flex items-center justify-center gap-1.5 rounded-lg py-1.5 hover:bg-line">
-                  <ListChecks size={14} /> Choose schools
+                  <ListChecks size={14} /> {t.chooseSchools}
                   {hidden.size > 0 && <span className="tabular text-ink">({hidden.size})</span>}
                 </button>
               </div>
@@ -465,7 +469,7 @@ export function App() {
             exit={{ opacity: 0 }}
             className="absolute bottom-8 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-2 text-[12.5px] text-ink-faint transition-colors hover:text-ink"
           >
-            Skip intro
+            {t.skipIntro}
           </motion.button>
         )}
       </AnimatePresence>
@@ -504,7 +508,7 @@ export function App() {
         onSchool={(s) => {
           if (hidden.has(s.id)) {
             setSchoolsHidden([s.id], false);
-            notify(`Back on the map: ${s.name}`);
+            notify(t.toastBack(schoolName(s)));
           }
           if (!kinds.has(s.kind)) setKinds((prev) => new Set([...prev, s.kind]));
           selectSchool(s);

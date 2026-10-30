@@ -10,8 +10,16 @@ import { buildStyle } from './style';
 import { KINDS, ORIGIN } from '../lib/meta';
 import { buildPulses, distanceKm, type Network } from '../lib/network';
 import type { MapTheme, School } from '../lib/types';
+import type { Lang } from '../lib/i18n';
 
 const governorates = JSON.parse(governoratesRaw) as GeoJSON.FeatureCollection;
+
+// Arabic map labels need right-to-left shaping. The plugin (copied from @mapbox/mapbox-gl-rtl-text
+// into public/vendor, since the package doesn't export its built file) loads on first use.
+// (Imported on demand so MapLibre stays in its own chunk, as react-map-gl loads it.)
+import('maplibre-gl')
+  .then(({ setRTLTextPlugin }) => setRTLTextPlugin(new URL('/vendor/mapbox-gl-rtl-text.js', location.href).href, true))
+  .catch(() => {});
 
 export const KUWAIT_VIEW = { longitude: 47.82, latitude: 29.27, zoom: 9.35, pitch: 38, bearing: -8 };
 export const GULF_VIEW = { longitude: 49.6, latitude: 27.4, zoom: 5.1, pitch: 0, bearing: 0 };
@@ -22,7 +30,6 @@ const MAX_BOUNDS: [number, number, number, number] = [42.5, 24.5, 53.5, 32.5];
 type RGB = [number, number, number];
 type RGBA = [number, number, number, number];
 
-const ARABIC = /[؀-ۿ]/;
 const shortName = (name: string) => (name.length > 36 ? `${name.slice(0, 34).trimEnd()}…` : name);
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 // Overshoots slightly, so each school "pops" into place.
@@ -60,6 +67,7 @@ interface Props {
   schools: School[];
   network: Network;
   theme: MapTheme;
+  lang: Lang;
   showWeave: boolean;
   showPulses: boolean;
   governorate: string | null;
@@ -75,14 +83,14 @@ interface Props {
 
 export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref) {
   const {
-    schools, network, theme, showWeave, showPulses, governorate, hoveredId, selectedId,
+    schools, network, theme, lang, showWeave, showPulses, governorate, hoveredId, selectedId,
     introStartedAt, skipIntro, onHover, onSelect, onLoad,
   } = props;
   const mapRef = useRef<MapRef | null>(null);
   const reducedMotion = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)').matches, []);
   const time = useClock(!reducedMotion);
   const [zoom, setZoom] = useState(skipIntro ? KUWAIT_VIEW.zoom : GULF_VIEW.zoom);
-  const mapStyle = useMemo(() => buildStyle(theme), [theme]);
+  const mapStyle = useMemo(() => buildStyle(theme, lang), [theme, lang]);
   const dark = theme !== 'day';
   const pearl: RGB = dark ? [243, 237, 226] : [59, 51, 42];
 
@@ -109,20 +117,18 @@ export const SchoolMap = forwardRef<MapRef, Props>(function SchoolMap(props, ref
     return { loop, data: walks.flatMap((w) => [w, { ...w, timestamps: w.timestamps.map((t) => t - loop) }]) };
   }, [schools, network]);
 
-  // School names are a MapLibre symbol layer, which handles overlaps and halos itself.
-  // Only Latin-script names are labelled: the map's glyph set can't shape Arabic.
+  // School names are a MapLibre symbol layer, which handles overlaps, halos and (with the RTL
+  // plugin) Arabic shaping itself. Labels follow the interface language.
   const labelData = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
-      features: schools
-        .filter((s) => !ARABIC.test(s.name))
-        .map((s) => ({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [s.lng, s.lat] },
-          properties: { name: shortName(s.name), rank: s.rating ?? 0 },
-        })),
+      features: schools.map((s) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [s.lng, s.lat] },
+        properties: { name: shortName(lang === 'ar' ? s.nameAr ?? s.name : s.name), rank: s.rating ?? 0 },
+      })),
     }),
-    [schools],
+    [schools, lang],
   );
 
   const schoolAlpha = (s: School, i: number) => {

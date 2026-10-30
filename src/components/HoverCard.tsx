@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { KINDS, governorateName } from '../lib/meta';
+import { useWords } from '../lib/i18n';
+import { KINDS } from '../lib/meta';
 import type { School } from '../lib/types';
+import { SectorBadge } from './SectorBadge';
 
 interface Props {
   hover: { school: School; x: number; y: number } | null;
@@ -9,6 +11,7 @@ interface Props {
 const WIDTH = 300;
 
 export function HoverCard({ hover }: Props) {
+  const { t, name, otherName, where } = useWords();
   let left = 0;
   let top = 0;
   if (hover) {
@@ -17,7 +20,8 @@ export function HoverCard({ hover }: Props) {
     top = Math.min(hover.y + 14, innerHeight - 150);
   }
   const s = hover?.school;
-  const where = s ? [s.area, governorateName(s.governorate)].filter((v, i, a) => v && a.indexOf(v) === i).join(', ') : '';
+  const alt = s ? otherName(s) : null;
+  const place = s ? where(s) : '';
 
   return (
     <AnimatePresence>
@@ -32,25 +36,27 @@ export function HoverCard({ hover }: Props) {
           exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.12 } }}
           transition={{ type: 'spring', stiffness: 520, damping: 40, mass: 0.6 }}
         >
-          {s.photo && (
-            <img src={s.photo} alt="" className="size-[60px] shrink-0 rounded-xl object-cover" referrerPolicy="no-referrer" />
-          )}
+          {s.photo && <img src={s.photo} alt="" className="size-[60px] shrink-0 rounded-xl object-cover" referrerPolicy="no-referrer" />}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 text-[11.5px] text-ink-muted">
               <span className="size-2 rounded-full" style={{ background: KINDS[s.kind].css }} />
-              {KINDS[s.kind].label}
-              <span dir="rtl" lang="ar" className="text-ink-faint">
-                {KINDS[s.kind].ar}
-              </span>
+              {t.kind[s.kind]}
+              <SectorBadge sector={s.sector} />
             </div>
-            <div dir="auto" className="mt-1 text-start text-[15px] font-normal leading-snug text-ink">{s.name}</div>
-            {s.nameAr && s.nameAr !== s.name && (
-              <div dir="rtl" lang="ar" className="mt-0.5 truncate text-[13px] text-ink-muted">
-                {s.nameAr}
+            <div dir="auto" className="mt-1 text-start text-[15px] font-normal leading-snug text-ink">
+              {name(s)}
+            </div>
+            {alt && (
+              <div dir="auto" className="mt-0.5 truncate text-start text-[13px] text-ink-muted">
+                {alt}
               </div>
             )}
-            {where && <div className="mt-1.5 truncate text-[12px] text-ink-muted">{where}</div>}
-            {s.phone && <div className="tabular mt-0.5 text-[12px] text-ink-muted" dir="ltr">{s.phone}</div>}
+            {place && <div className="mt-1.5 truncate text-[12px] text-ink-muted">{place}</div>}
+            {s.phone && (
+              <div className="tabular mt-0.5 text-start text-[12px] text-ink-muted" dir="ltr">
+                {s.phone}
+              </div>
+            )}
           </div>
         </motion.div>
       )}
