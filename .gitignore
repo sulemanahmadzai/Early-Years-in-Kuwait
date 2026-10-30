@@ -6,3 +6,5 @@ data/raw/
 Untitled document*.md
 *.local
 .env*
+# Source documents (large); the extracted lists are committed instead
+data/moe/*.pdf

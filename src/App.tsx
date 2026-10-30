@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MapRef } from 'react-map-gl/maplibre';
 import type { LngLatBoundsLike, PaddingOptions } from 'maplibre-gl';
 import { AnimatePresence, motion } from 'motion/react';
-import { ChevronUp } from 'lucide-react';
+import { ChevronUp, ListChecks } from 'lucide-react';
 import schoolsData from './data/schools.json';
 import { SchoolMap, INTRO_SECONDS } from './map/SchoolMap';
 import { TitleBlock } from './components/TitleBlock';
@@ -12,6 +12,9 @@ import { HoverCard } from './components/HoverCard';
 import { DetailPanel } from './components/DetailPanel';
 import { SearchButton, SearchPalette } from './components/SearchPalette';
 import { PresentationOverlay, type Slide } from './components/PresentationOverlay';
+import { SchoolManager } from './components/SchoolManager';
+import { Toast, type ToastMessage } from './components/Toast';
+import { loadHidden, saveHidden, selectionLink } from './lib/selection';
 import { GOVERNORATES, KIND_ORDER } from './lib/meta';
 import { buildNetwork, distanceKm } from './lib/network';
 import { coreBoundsOf } from './lib/geo';
@@ -45,6 +48,10 @@ export function App() {
   const [slideIndex, setSlideIndex] = useState<number | null>(null);
   const [introStartedAt, setIntroStartedAt] = useState<number | null>(null);
   const [introDone, setIntroDone] = useState(skipIntro);
+  // Schools switched off by the user (kept on this device, shareable by link).
+  const [hidden, setHidden] = useState<Set<string>>(() => loadHidden(SCHOOLS));
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const timers = useRef<number[]>([]);
   const presenting = slideIndex !== null;
 
@@ -52,9 +59,12 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  const visible = useMemo(() => SCHOOLS.filter((s) => kinds.has(s.kind)), [kinds]);
+  useEffect(() => saveHidden(hidden), [hidden]);
+
+  const shown = useMemo(() => SCHOOLS.filter((s) => !hidden.has(s.id)), [hidden]);
+  const visible = useMemo(() => shown.filter((s) => kinds.has(s.kind)), [shown, kinds]);
   const network = useMemo(() => buildNetwork(visible), [visible]);
-  const inScope = useMemo(() => (governorate ? SCHOOLS.filter((s) => s.governorate === governorate) : SCHOOLS), [governorate]);
+  const inScope = useMemo(() => (governorate ? shown.filter((s) => s.governorate === governorate) : shown), [governorate, shown]);
   const kindCounts = useMemo(() => countKinds(inScope), [inScope]);
   const governorateCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -154,7 +164,7 @@ export function App() {
   // ---- Presentation ------------------------------------------------------
 
   const slides = useMemo<Slide[]>(() => {
-    const total = SCHOOLS.length;
+    const total = shown.length;
     const list: Slide[] = [
       {
         id: 'overview',
@@ -162,11 +172,11 @@ export function App() {
         titleAr: 'الطفولة المبكرة في الكويت',
         count: total,
         summary: `${total.toLocaleString()} nurseries, kindergartens and preschools across six governorates`,
-        kinds: countKinds(SCHOOLS),
+        kinds: countKinds(shown),
       },
     ];
     for (const key of TOUR_ORDER) {
-      const inGov = SCHOOLS.filter((s) => s.governorate === key);
+      const inGov = shown.filter((s) => s.governorate === key);
       if (!inGov.length) continue;
       list.push({
         id: key,
@@ -177,17 +187,17 @@ export function App() {
         kinds: countKinds(inGov),
       });
     }
-    const threads = buildNetwork(SCHOOLS).edges.length;
+    const threads = buildNetwork(shown).edges.length;
     list.push({
       id: 'grid',
       title: 'One connected grid',
       titleAr: 'شبكة واحدة مترابطة',
       count: total,
       summary: `${threads.toLocaleString()} threads join every school to its nearest neighbours`,
-      kinds: countKinds(SCHOOLS),
+      kinds: countKinds(shown),
     });
     return list;
-  }, []);
+  }, [shown]);
 
   const showSlide = useCallback(
     (index: number) => {
@@ -224,7 +234,7 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!introDone) return skipIntroNow();
-      if (presenting) return;
+      if (presenting || managerOpen) return;
       const typing = (e.target as HTMLElement)?.closest('input, textarea');
       if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !typing)) {
         e.preventDefault();
@@ -236,7 +246,7 @@ export function App() {
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
-  }, [governorate, introDone, presenting, searchOpen, selectGovernorate, selected, skipIntroNow]);
+  }, [governorate, introDone, managerOpen, presenting, searchOpen, selectGovernorate, selected, skipIntroNow]);
 
   // ---- Derived detail data -------------------------------------------------
 
@@ -257,6 +267,60 @@ export function App() {
       else next.add(kind);
       return next;
     });
+
+  // ---- Switching schools on and off ---------------------------------------
+
+  const notify = useCallback((text: string, action?: ToastMessage['action']) => setToast({ id: Date.now(), text, action }), []);
+  const dismissToast = useCallback(() => setToast(null), []);
+
+  const setSchoolsHidden = useCallback((ids: string[], hide: boolean) => {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (hide) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // Bulk changes from the list get an undo, since they can touch hundreds of schools at once.
+  const setManyHidden = useCallback(
+    (ids: string[], hide: boolean) => {
+      const changed = ids.filter((id) => hidden.has(id) !== hide);
+      if (!changed.length) return;
+      setSchoolsHidden(changed, hide);
+      if (changed.length > 1) {
+        notify(`${hide ? 'Hid' : 'Showed'} ${changed.length.toLocaleString()} schools`, {
+          label: 'Undo',
+          run: () => setSchoolsHidden(changed, !hide),
+        });
+      }
+    },
+    [hidden, notify, setSchoolsHidden],
+  );
+
+  const hideSchool = useCallback(
+    (school: School) => {
+      setSchoolsHidden([school.id], true);
+      setSelected(null);
+      notify(`Hidden from the map: ${school.name}`, { label: 'Undo', run: () => setSchoolsHidden([school.id], false) });
+    },
+    [notify, setSchoolsHidden],
+  );
+
+  const copySelectionLink = useCallback(() => {
+    const link = selectionLink(SCHOOLS, hidden);
+    navigator.clipboard
+      ?.writeText(link)
+      .then(() => notify(`Link copied. It opens the map with these ${shown.length.toLocaleString()} schools.`))
+      .catch(() => notify('Copying was blocked by the browser. Try again after clicking the page.'));
+  }, [hidden, notify, shown.length]);
+
+  // A school switched off while its details are open closes the panel.
+  useEffect(() => {
+    if (selected && hidden.has(selected.id)) setSelected(null);
+  }, [hidden, selected]);
 
   const reveal = (delay: number) => ({
     initial: { opacity: 0, y: 10 },
@@ -301,7 +365,7 @@ export function App() {
           </motion.div>
         )}
 
-        {chrome && !isPhone && (
+        {chrome && !isPhone && !managerOpen && (
           <motion.div key="index" {...reveal(0.2)} className="glass absolute bottom-6 left-6 z-20 w-[300px] rounded-3xl p-3">
             <IndexPanel
               kindCounts={kindCounts}
@@ -311,6 +375,8 @@ export function App() {
               total={visible.length}
               governorate={governorate}
               onGovernorate={selectGovernorate}
+              hiddenCount={hidden.size}
+              onManage={() => setManagerOpen(true)}
             />
             <p className="mt-2 px-2 text-[11px] text-ink-faint">Listings from Google Maps, October 2026</p>
           </motion.div>
@@ -339,7 +405,7 @@ export function App() {
           </motion.div>
         )}
 
-        {chrome && isPhone && !selected && (
+        {chrome && isPhone && !selected && !managerOpen && (
           <motion.div
             key="sheet"
             initial={{ y: '100%' }}
@@ -368,12 +434,23 @@ export function App() {
                   setSheetOpen(false);
                   selectGovernorate(key);
                 }}
+                hiddenCount={hidden.size}
+                onManage={() => {
+                  setSheetOpen(false);
+                  setManagerOpen(true);
+                }}
               />
             </div>
             {!sheetOpen && (
-              <button type="button" onClick={() => setSheetOpen(true)} className="mt-1 flex w-full items-center justify-center gap-1 py-1 text-[12.5px] text-ink-muted">
-                <ChevronUp size={14} /> Governorates
-              </button>
+              <div className="mt-1 grid grid-cols-2 gap-1 text-[12.5px] text-ink-muted">
+                <button type="button" onClick={() => setSheetOpen(true)} className="flex items-center justify-center gap-1 rounded-lg py-1.5 hover:bg-line">
+                  <ChevronUp size={14} /> Governorates
+                </button>
+                <button type="button" onClick={() => setManagerOpen(true)} className="flex items-center justify-center gap-1.5 rounded-lg py-1.5 hover:bg-line">
+                  <ListChecks size={14} /> Choose schools
+                  {hidden.size > 0 && <span className="tabular text-ink">({hidden.size})</span>}
+                </button>
+              </div>
             )}
           </motion.div>
         )}
@@ -401,13 +478,34 @@ export function App() {
         sheet={isPhone}
         onClose={() => setSelected(null)}
         onSelect={selectSchool}
+        onHide={hideSchool}
+      />
+
+      <SchoolManager
+        open={managerOpen && chrome}
+        sheet={isPhone}
+        schools={SCHOOLS}
+        hidden={hidden}
+        onSetHidden={setManyHidden}
+        onLocate={(s) => {
+          if (isPhone) setManagerOpen(false);
+          if (!kinds.has(s.kind)) setKinds((prev) => new Set([...prev, s.kind]));
+          selectSchool(s);
+        }}
+        onCopyLink={copySelectionLink}
+        onClose={() => setManagerOpen(false)}
       />
 
       <SearchPalette
         open={searchOpen}
         schools={SCHOOLS}
+        hidden={hidden}
         onOpenChange={setSearchOpen}
         onSchool={(s) => {
+          if (hidden.has(s.id)) {
+            setSchoolsHidden([s.id], false);
+            notify(`Back on the map: ${s.name}`);
+          }
           if (!kinds.has(s.kind)) setKinds((prev) => new Set([...prev, s.kind]));
           selectSchool(s);
         }}
@@ -415,6 +513,12 @@ export function App() {
       />
 
       {presenting && <PresentationOverlay slides={slides} index={slideIndex} onIndex={showSlide} onExit={stopPresenting} />}
+
+      <Toast
+        toast={toast}
+        onDismiss={dismissToast}
+        placement={!isPhone || managerOpen ? 'top' : chrome && !selected ? 'bottom-raised' : 'bottom'}
+      />
     </div>
   );
 }

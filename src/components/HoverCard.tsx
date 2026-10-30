@@ -39,6 +39,9 @@ export function HoverCard({ hover }: Props) {
             <div className="flex items-center gap-1.5 text-[11.5px] text-ink-muted">
               <span className="size-2 rounded-full" style={{ background: KINDS[s.kind].css }} />
               {KINDS[s.kind].label}
+              <span dir="rtl" lang="ar" className="text-ink-faint">
+                {KINDS[s.kind].ar}
+              </span>
             </div>
             <div dir="auto" className="mt-1 text-start text-[15px] font-normal leading-snug text-ink">{s.name}</div>
             {s.nameAr && s.nameAr !== s.name && (

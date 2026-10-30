@@ -108,6 +108,9 @@ const HARD_NO = /grocery|supermarket|market|co-?op|restaurant|caf[eé]|pharmacy|
 
 // Places checked by hand and found not to be early-years schools (see the reason on each).
 const EXCLUDE = readJson(path.join(ROOT, 'scripts/scrape/exclude.json'), {});
+// Real schools whose Google photo is something else (a sofa, a car, a garden, a selfie…); they show
+// the woven pattern instead. Keyed by school id, checked by hand from a contact sheet of all photos.
+const BAD_PHOTOS = readJson(path.join(ROOT, 'scripts/scrape/bad-photos.json'), {});
 
 function verdict(p, d) {
   if (EXCLUDE[p.fid.split(':')[1]]) return 'excluded by hand (scripts/scrape/exclude.json)';
@@ -120,8 +123,10 @@ function verdict(p, d) {
   const name = `${d.name ?? p.name} ${d.altName ?? ''}`;
   if (EARLY_YEARS_CATEGORY.test(category)) return 'keep';
   if (HARD_NO.test(category)) return `category: ${category}`;
-  if (/plant nursery|garden|florist|landscap|wholesal|arboretum/i.test(category)) {
-    return /حا?ضا?ن|روض|رياض/.test(name) || KID_WORDS.test(name) ? 'keep' : `category: ${category}`;
+  // A garden or plant nursery is only a school if the name says so in words that can't mean
+  // "garden": روضة literally means garden/meadow, so it doesn't count here; حضانة or kids' words do.
+  if (/plant nursery|garden|florist|landscap|wholesal|arboretum|park|farm/i.test(category)) {
+    return /حا?ضا?ن/.test(name) || KID_WORDS.test(name) ? 'keep' : `category: ${category}`;
   }
   // "… near Blossoms Nursery" is a building next to a school, not the school.
   if (/\bnear\b|بالقرب/i.test(name)) return `category: ${category || '(none)'} (near)`;
@@ -180,19 +185,46 @@ for (const p of Object.values(discovered)) {
   });
 }
 
-// The same school sometimes appears twice (branch pages, duplicates): drop exact name+position repeats.
-const seen = new Set();
-const schools = kept
-  .filter((s) => {
-    const key = `${s.name.toLowerCase()}|${s.lat.toFixed(4)}|${s.lng.toFixed(4)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+// Many schools have two Google pins a few metres apart (typically one without a category and one
+// marked "Preschool", or "روضة"/"روضه" spellings). Same name within 350 m = same school: keep the
+// best-documented pin and fill its gaps from the others.
+const normName = (t) =>
+  (t ?? '')
+    .replace(/[ً-ْـ]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[^؀-ۿa-z0-9]+/gi, ' ')
+    .trim()
+    .toLowerCase();
+const distanceKm = (a, b) => Math.hypot((a.lat - b.lat) * 110.57, (a.lng - b.lng) * 97.1);
+const quality = (s) => (EARLY_YEARS_CATEGORY.test(s.category ?? '') ? 8 : 0) + (s.photo ? 4 : 0) + (s.phone ? 2 : 0) + (s.rating ? 1 : 0);
+
+const parent = kept.map((_, i) => i);
+const root = (i) => (parent[i] === i ? i : (parent[i] = root(parent[i])));
+const keys = kept.map((s) => new Set([normName(s.name), normName(s.nameAr)].filter(Boolean)));
+for (let i = 0; i < kept.length; i++) {
+  for (let j = i + 1; j < kept.length; j++) {
+    if (distanceKm(kept[i], kept[j]) <= 0.35 && [...keys[i]].some((k) => keys[j].has(k))) parent[root(j)] = root(i);
+  }
+}
+const groups = Object.values(Object.groupBy(kept.map((s, i) => ({ s, i })), ({ i }) => root(i))).map((g) => g.map(({ s }) => s));
+let merged = 0;
+const schools = groups
+  .map((group) => {
+    if (group.length === 1) return group[0];
+    merged += group.length - 1;
+    const [best, ...rest] = [...group].sort((a, b) => quality(b) - quality(a));
+    const latinName = [best, ...rest].map((s) => s.name).find((n) => /[A-Za-z]{3}/.test(n));
+    const out = { ...best, name: latinName ?? best.name };
+    for (const key of ['nameAr', 'area', 'address', 'phone', 'website', 'rating', 'photo']) out[key] ??= rest.find((s) => s[key])?.[key] ?? null;
+    return out;
   })
   .sort((a, b) => a.name.localeCompare(b.name));
 
 // Photos: with --photos, download each one into public/photos so the site never depends on
 // Google's image links staying alive. Already-downloaded photos are always used.
+for (const s of schools) if (BAD_PHOTOS[s.id]) s.photo = null;
 const PHOTO_DIR = path.join(ROOT, 'public/photos');
 fs.mkdirSync(PHOTO_DIR, { recursive: true });
 const download = arg('photos') === true ? schools.filter((s) => s.photo && !fs.existsSync(path.join(PHOTO_DIR, `${s.id}.jpg`))) : [];
@@ -210,14 +242,18 @@ for (let i = 0; i < download.length; i += 8) {
     }),
   );
 }
-for (const s of schools) if (fs.existsSync(path.join(PHOTO_DIR, `${s.id}.jpg`))) s.photo = `/photos/${s.id}.jpg`;
+for (const s of schools) {
+  const file = path.join(PHOTO_DIR, `${s.id}.jpg`);
+  if (BAD_PHOTOS[s.id]) fs.rmSync(file, { force: true });
+  else if (fs.existsSync(file)) s.photo = `/photos/${s.id}.jpg`;
+}
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 writeJson(OUT, schools);
 writeJson(REJECTS, rejected);
 
 const count = (key) => Object.entries(Object.groupBy(schools, (s) => s[key] ?? '—')).map(([k, v]) => `${k}: ${v.length}`).join(', ');
-console.log(`Discovered ${Object.keys(discovered).length}, with details ${Object.keys(details).length}, kept ${schools.length}`);
+console.log(`Discovered ${Object.keys(discovered).length}, with details ${Object.keys(details).length}, kept ${schools.length} (${merged} duplicate pins merged)`);
 console.log(`By kind — ${count('kind')}`);
 console.log(`By governorate — ${count('governorate')}`);
 console.log(`With phone ${schools.filter((s) => s.phone).length}, photo ${schools.filter((s) => s.photo).length}, Arabic name ${schools.filter((s) => s.nameAr).length}`);

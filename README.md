@@ -47,6 +47,19 @@ Some listings pass those rules but are not schools: farms called "روضة" (mea
 diwaniya, joke pins. They were checked by hand and are listed with a reason in `scripts/scrape/exclude.json`,
 which the build always skips. Remove a line there to bring a place back.
 
+Many schools have two Google pins a few metres apart (one without a category, one marked "Preschool",
+or "روضة"/"روضه" spellings). The build merges places with the same name within 350 m into one school.
+
+Some real schools have a Google photo of something else (a sofa, a car, a garden, a selfie). Those are
+listed in `scripts/scrape/bad-photos.json`; the build drops the photo and the site shows a woven pattern.
+
+## Switching schools on and off
+
+"Choose schools" (bottom-left panel, or the phone sheet) lists every school with an on/off switch,
+filters (name, shown/hidden, governorate) and "Hide these / Show these" for the filtered list. A school
+can also be hidden from its detail panel. Hidden schools leave the map, the grid and every count,
+including the presentation. The choice is saved in the browser; "Copy link" carries it to another device.
+
 ## Notes
 
 - `maplibre-gl` is pinned to v5: deck.gl 9.4's interleaved mode does not work with MapLibre 6 yet.

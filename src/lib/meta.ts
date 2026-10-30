@@ -5,7 +5,7 @@ type RGB = [number, number, number];
 // Kindergartens take the blue-green of the Kuwait Towers' discs, nurseries the
 // madder red of Al Sadu weaving, preschools the gold of the pearling era.
 export const KINDS: Record<Kind, { label: string; plural: string; ar: string; color: RGB; css: string }> = {
-  kindergarten: { label: 'Kindergarten', plural: 'Kindergartens', ar: 'روضة', color: [79, 209, 197], css: 'var(--kind-kindergarten)' },
+  kindergarten: { label: 'Kindergarten', plural: 'Kindergartens', ar: 'روضة أطفال', color: [79, 209, 197], css: 'var(--kind-kindergarten)' },
   nursery: { label: 'Nursery', plural: 'Nurseries', ar: 'حضانة', color: [236, 91, 67], css: 'var(--kind-nursery)' },
   preschool: { label: 'Preschool', plural: 'Preschools', ar: 'تمهيدي', color: [233, 185, 73], css: 'var(--kind-preschool)' },
 };

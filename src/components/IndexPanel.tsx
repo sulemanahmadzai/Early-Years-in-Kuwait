@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { ChevronRight, ListChecks } from 'lucide-react';
 import { GOVERNORATES, KINDS, KIND_ORDER } from '../lib/meta';
 import type { Kind } from '../lib/types';
 
@@ -10,9 +11,12 @@ interface Props {
   total: number;
   governorate: string | null;
   onGovernorate: (key: string | null) => void;
+  hiddenCount: number;
+  onManage: () => void;
 }
 
-export function IndexPanel({ kindCounts, kinds, onToggleKind, governorateCounts, total, governorate, onGovernorate }: Props) {
+export function IndexPanel(props: Props) {
+  const { kindCounts, kinds, onToggleKind, governorateCounts, total, governorate, onGovernorate, hiddenCount, onManage } = props;
   const max = Math.max(1, ...Object.values(governorateCounts));
   const rows = Object.keys(GOVERNORATES);
 
@@ -58,6 +62,21 @@ export function IndexPanel({ kindCounts, kinds, onToggleKind, governorateCounts,
           />
         ))}
       </div>
+
+      <div className="h-px bg-line" />
+
+      <button
+        type="button"
+        onClick={onManage}
+        className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-left text-ink-muted transition-colors hover:bg-line hover:text-ink"
+      >
+        <ListChecks size={16} strokeWidth={1.6} className="shrink-0" />
+        <span className="flex-1 text-[13.5px]">Choose schools</span>
+        {hiddenCount > 0 && (
+          <span className="tabular rounded-full bg-line-strong px-2 py-0.5 text-[11.5px] text-ink">{hiddenCount.toLocaleString()} hidden</span>
+        )}
+        <ChevronRight size={15} strokeWidth={1.6} className="shrink-0 text-ink-faint" />
+      </button>
     </div>
   );
 }
