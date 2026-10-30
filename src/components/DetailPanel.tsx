@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { ExternalLink, Globe, MapPin, Phone, Star, X } from 'lucide-react';
+import { ExternalLink, EyeOff, Globe, MapPin, Phone, Star, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { KINDS, governorateName } from '../lib/meta';
 import { formatKm } from '../lib/geo';
@@ -12,9 +12,10 @@ interface Props {
   sheet: boolean; // bottom sheet on phones, side panel otherwise
   onClose: () => void;
   onSelect: (school: School) => void;
+  onHide: (school: School) => void;
 }
 
-export function DetailPanel({ school, connected, sheet, onClose, onSelect }: Props) {
+export function DetailPanel({ school, connected, sheet, onClose, onSelect, onHide }: Props) {
   const where = school
     ? [school.area, governorateName(school.governorate)].filter((v, i, a) => v && a.indexOf(v) === i).join(', ')
     : '';
@@ -48,6 +49,9 @@ export function DetailPanel({ school, connected, sheet, onClose, onSelect }: Pro
               <div className="flex items-center gap-2 text-[12px] text-ink-muted">
                 <span className="size-2 rounded-full" style={{ background: KINDS[school.kind].css }} />
                 {KINDS[school.kind].label}
+                <span dir="rtl" lang="ar" className="text-ink-faint">
+                  {KINDS[school.kind].ar}
+                </span>
               </div>
               <h2 dir="auto" className="mt-2 text-start text-[22px] font-light leading-tight tracking-[-0.01em] text-ink">{school.name}</h2>
               {school.nameAr && school.nameAr !== school.name && (
@@ -102,6 +106,13 @@ export function DetailPanel({ school, connected, sheet, onClose, onSelect }: Pro
                   <ExternalLink size={15} strokeWidth={1.7} /> Open in Google Maps
                 </a>
               </div>
+              <button
+                type="button"
+                onClick={() => onHide(school)}
+                className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-xl text-[12.5px] text-ink-muted transition-colors hover:bg-line hover:text-ink"
+              >
+                <EyeOff size={14} strokeWidth={1.7} /> Hide this school from the map
+              </button>
 
               {connected.length > 0 && (
                 <section className="mt-7">

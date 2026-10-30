@@ -2,13 +2,14 @@ import { Command } from 'cmdk';
 import Fuse from 'fuse.js';
 import { AnimatePresence, motion } from 'motion/react';
 import { Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GOVERNORATES, KINDS, governorateName } from '../lib/meta';
 import type { School } from '../lib/types';
 
 interface Props {
   open: boolean;
   schools: School[];
+  hidden: Set<string>;
   onOpenChange: (open: boolean) => void;
   onSchool: (school: School) => void;
   onGovernorate: (key: string) => void;
@@ -34,8 +35,12 @@ export function SearchButton({ count, onClick, compact }: { count: number; onCli
   );
 }
 
-export function SearchPalette({ open, schools, onOpenChange, onSchool, onGovernorate }: Props) {
+export function SearchPalette({ open, schools, hidden, onOpenChange, onSchool, onGovernorate }: Props) {
   const [query, setQuery] = useState('');
+  // Each search starts fresh.
+  useEffect(() => {
+    if (open) setQuery('');
+  }, [open]);
   const fuse = useMemo(
     () =>
       new Fuse(schools, {
@@ -128,7 +133,13 @@ export function SearchPalette({ open, schools, onOpenChange, onSchool, onGoverno
                         </span>
                       )}
                     </span>
-                    <span className="shrink-0 text-[12px] text-ink-muted">{s.area ?? governorateName(s.governorate)}</span>
+                    {hidden.has(s.id) ? (
+                      <span className="shrink-0 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-ink-muted" title="Choosing it puts it back on the map">
+                        Hidden
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-[12px] text-ink-muted">{s.area ?? governorateName(s.governorate)}</span>
+                    )}
                   </Command.Item>
                 ))}
               </Command.List>
